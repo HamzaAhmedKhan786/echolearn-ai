@@ -24,3 +24,10 @@ log = "0.4"
 postgres = "0.19"
 tauri = { version = "2.11.3", features = [] }
 tauri-plugin-log = "2"
+
+[profile.dev]
+debug = 0
+incremental = false
+
+[profile.dev.package."*"]
+debug = 0
