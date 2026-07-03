@@ -27,6 +27,7 @@ type ImportResult = {
   character_count: number;
   chunk_count: number;
   persisted?: boolean;
+  chunks?: StoredChunk[];
 };
 
 type StoredDocument = {
@@ -38,6 +39,22 @@ type StoredDocument = {
   created_at: string;
 };
 
+type StoredChunk = {
+  id: string;
+  chunk_index: number;
+  text: string;
+  token_estimate: number;
+};
+
+type TutorAnswer = {
+  answer: string;
+  citations: Array<{
+    chunk_id: string;
+    chunk_index: number;
+    excerpt: string;
+  }>;
+};
+
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activePage, setActivePage] = useState("Library");
@@ -46,6 +63,8 @@ function App() {
   const [documentFile, setDocumentFile] = useState<DocumentFile | null>(null);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
   const [documents, setDocuments] = useState<StoredDocument[]>([]);
+  const [selectedDocument, setSelectedDocument] = useState<StoredDocument | null>(null);
+  const [readerChunks, setReaderChunks] = useState<StoredChunk[]>([]);
   const [importStatus, setImportStatus] = useState("No document imported yet.");
   const [chatMessages, setChatMessages] = useState<string[]>([
     "Upload a document and I will answer only from its content.",
@@ -81,6 +100,15 @@ function App() {
       const text = await file.text();
       const result = await importTextDocument(file, text);
       setImportResult(result);
+      setSelectedDocument({
+        id: result.id,
+        title: result.name,
+        file_type: result.file_type,
+        file_size: result.file_size,
+        chunk_count: result.chunk_count,
+        created_at: new Date().toISOString(),
+      });
+      setReaderChunks(result.chunks ?? []);
       setImportStatus(
         `Imported ${result.chunk_count} chunks from ${result.character_count.toLocaleString()} characters${result.persisted ? " and saved to PostgreSQL" : ""}.`,
       );
@@ -125,6 +153,32 @@ function App() {
     }
   }
 
+  async function openStoredDocument(document: StoredDocument) {
+    setSelectedDocument(document);
+    setDocumentFile({
+      name: document.title,
+      size: document.file_size,
+      type: document.file_type,
+    });
+    setImportResult({
+      id: document.id,
+      name: document.title,
+      file_type: document.file_type,
+      file_size: document.file_size,
+      character_count: 0,
+      chunk_count: document.chunk_count,
+      persisted: true,
+    });
+    setImportStatus(`Loaded ${document.chunk_count} saved chunks from PostgreSQL.`);
+    setActivePage("Reader");
+
+    try {
+      setReaderChunks(await invoke<StoredChunk[]>("get_document_chunks", { documentId: document.id }));
+    } catch {
+      setReaderChunks([]);
+    }
+  }
+
   useEffect(() => {
     void refreshDocuments();
   }, []);
@@ -140,9 +194,9 @@ function App() {
     if (file) void handleFile(file);
   }
 
-  function handleAsk() {
-    if (!documentFile) {
-      alert("Please upload a document first.");
+  async function handleAsk() {
+    if (!selectedDocument && !documentFile) {
+      alert("Please upload or select a document first.");
       return;
     }
 
@@ -151,13 +205,33 @@ function App() {
       return;
     }
 
-    setChatMessages((prev) => [
-      ...prev,
-      `You asked from scope "${scope}": ${question}`,
-      "AI answer will be connected after the local RAG pipeline is implemented.",
-    ]);
-
+    const askedQuestion = question;
     setQuestion("");
+    setChatMessages((prev) => [...prev, `You asked from scope "${scope}": ${askedQuestion}`]);
+
+    if (!selectedDocument) {
+      setChatMessages((prev) => [
+        ...prev,
+        "Select a saved PostgreSQL document to use grounded Q&A.",
+      ]);
+      return;
+    }
+
+    try {
+      const answer = await askStoredDocument(selectedDocument.id, askedQuestion, readerChunks);
+      setChatMessages((prev) => [
+        ...prev,
+        answer.answer,
+        ...answer.citations.map(
+          (citation) => `Source chunk ${citation.chunk_index + 1}: ${citation.excerpt}`,
+        ),
+      ]);
+    } catch (error) {
+      setChatMessages((prev) => [
+        ...prev,
+        `Grounded answer failed: ${error instanceof Error ? error.message : String(error)}`,
+      ]);
+    }
   }
 
   return (
@@ -237,7 +311,7 @@ function App() {
           <>
             <Hero onUploadClick={handleUploadClick} />
             <FeatureCards />
-            <LibraryList documents={documents} />
+            <LibraryList documents={documents} onOpenDocument={openStoredDocument} />
             <DocumentPanel
               documentFile={documentFile}
               importResult={importResult}
@@ -252,6 +326,8 @@ function App() {
         {activePage === "Reader" && (
           <ReaderPage
             documentFile={documentFile}
+            selectedDocument={selectedDocument}
+            chunks={readerChunks}
             importResult={importResult}
             importStatus={importStatus}
             documentSize={documentSize}
@@ -306,8 +382,8 @@ function App() {
         </select>
 
         <div className="infoBox">
-          {documentFile
-            ? `Selected document: ${documentFile.name}`
+          {selectedDocument || documentFile
+            ? `Selected document: ${selectedDocument?.title ?? documentFile?.name}`
             : "Upload a document to start grounded Q&A."}
         </div>
 
@@ -330,7 +406,7 @@ function App() {
           <span>{question.length} / 2000</span>
         </div>
 
-        <button className="askBtn" onClick={handleAsk}>
+        <button className="askBtn" onClick={() => void handleAsk()}>
           Ask EchoLearn
         </button>
       </aside>
@@ -378,7 +454,13 @@ function FeatureCards() {
   );
 }
 
-function LibraryList({ documents }: { documents: StoredDocument[] }) {
+function LibraryList({
+  documents,
+  onOpenDocument,
+}: {
+  documents: StoredDocument[];
+  onOpenDocument: (document: StoredDocument) => void;
+}) {
   return (
     <section className="documentPanel libraryList">
       <div className="panelHeader">
@@ -389,13 +471,13 @@ function LibraryList({ documents }: { documents: StoredDocument[] }) {
       {documents.length ? (
         <div className="documentRows">
           {documents.map((document) => (
-            <div className="documentRow" key={document.id}>
+            <button className="documentRow" key={document.id} onClick={() => void onOpenDocument(document)}>
               <div>
                 <strong>{document.title}</strong>
                 <p>{document.file_type || "Unknown type"} / {formatFileSize(document.file_size)}</p>
               </div>
               <span>{document.chunk_count} chunks</span>
-            </div>
+            </button>
           ))}
         </div>
       ) : (
@@ -409,6 +491,8 @@ function LibraryList({ documents }: { documents: StoredDocument[] }) {
 
 function ReaderPage({
   documentFile,
+  selectedDocument,
+  chunks,
   importResult,
   importStatus,
   documentSize,
@@ -416,6 +500,8 @@ function ReaderPage({
   onUploadClick,
 }: {
   documentFile: DocumentFile | null;
+  selectedDocument: StoredDocument | null;
+  chunks: StoredChunk[];
   importResult: ImportResult | null;
   importStatus: string;
   documentSize: string;
@@ -440,12 +526,22 @@ function ReaderPage({
           <button>Bookmark</button>
         </div>
         <article>
-          <h3>{documentFile ? documentFile.name : "No document loaded"}</h3>
+          <h3>{selectedDocument?.title ?? documentFile?.name ?? "No document loaded"}</h3>
           <p>
             {importResult
               ? `${importResult.chunk_count} chunks are ready for embeddings, citations, and local Q&A.`
               : "The reader canvas is ready for parsed text, sentence highlighting, page navigation, and local text-to-speech playback."}
           </p>
+          {chunks.length > 0 && (
+            <div className="chunkList">
+              {chunks.slice(0, 8).map((chunk) => (
+                <section className="chunkItem" key={chunk.id}>
+                  <strong>Chunk {chunk.chunk_index + 1}</strong>
+                  <p>{chunk.text}</p>
+                </section>
+              ))}
+            </div>
+          )}
         </article>
       </section>
     </>
@@ -526,15 +622,16 @@ async function importTextDocument(file: File, text: string): Promise<ImportResul
   } catch (error) {
     if (isMissingTauriRuntime(error)) {
       const normalized = text.trim();
-      const chunkCount = Math.max(1, Math.ceil(normalized.length / 1400));
+      const chunks = chunkTextPreview(`web-preview-${Date.now()}`, normalized);
       return {
-        id: `web-preview-${Date.now()}`,
+        id: chunks.documentId,
         name: file.name,
         file_type: file.type || "text/plain",
         file_size: file.size,
         character_count: normalized.length,
-        chunk_count: chunkCount,
+        chunk_count: chunks.items.length,
         persisted: false,
+        chunks: chunks.items,
       };
     }
 
@@ -546,6 +643,76 @@ function formatFileSize(size: number) {
   if (!Number.isFinite(size) || size <= 0) return "0 KB";
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
   return `${(size / 1024 / 1024).toFixed(2)} MB`;
+}
+
+async function askStoredDocument(
+  documentId: string,
+  question: string,
+  fallbackChunks: StoredChunk[],
+): Promise<TutorAnswer> {
+  try {
+    return await invoke<TutorAnswer>("ask_document_question", {
+      documentId,
+      question,
+    });
+  } catch (error) {
+    if (!isMissingTauriRuntime(error) && fallbackChunks.length === 0) {
+      throw error;
+    }
+
+    const terms = question
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((term) => term.length > 2);
+    const citations = fallbackChunks
+      .map((chunk) => ({
+        chunk,
+        score: terms.filter((term) => chunk.text.toLowerCase().includes(term)).length,
+      }))
+      .filter((item) => item.score > 0)
+      .sort((left, right) => right.score - left.score)
+      .slice(0, 3)
+      .map(({ chunk }) => ({
+        chunk_id: chunk.id,
+        chunk_index: chunk.chunk_index,
+        excerpt: excerptPreview(chunk.text, 360),
+      }));
+
+    return {
+      answer: citations.length
+        ? `I found ${citations.length} relevant source chunk${citations.length === 1 ? "" : "s"} in the current preview import.`
+        : "I could not find matching support in the selected document chunks.",
+      citations,
+    };
+  }
+}
+
+function chunkTextPreview(documentId: string, text: string) {
+  const items: StoredChunk[] = [];
+  const target = 1400;
+  const overlap = 220;
+  let start = 0;
+
+  while (start < text.length) {
+    const end = Math.min(text.length, start + target);
+    const chunkText = text.slice(start, end).trim();
+    if (chunkText) {
+      items.push({
+        id: `${documentId}-chunk-${items.length}`,
+        chunk_index: items.length,
+        text: chunkText,
+        token_estimate: Math.max(1, chunkText.split(/\s+/).length),
+      });
+    }
+    if (end >= text.length) break;
+    start = Math.max(0, end - overlap);
+  }
+
+  return { documentId, items };
+}
+
+function excerptPreview(text: string, maxLength: number) {
+  return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
 }
 
 function isMissingTauriRuntime(error: unknown) {

@@ -19,7 +19,9 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             import_document_text,
-            list_documents
+            list_documents,
+            get_document_chunks,
+            ask_document_question
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -55,6 +57,29 @@ struct StoredDocument {
     file_size: i64,
     chunk_count: i64,
     created_at: String,
+}
+
+#[derive(serde::Serialize)]
+struct StoredChunk {
+    id: String,
+    chunk_index: i32,
+    text: String,
+    start_offset: i32,
+    end_offset: i32,
+    token_estimate: i32,
+}
+
+#[derive(serde::Serialize)]
+struct TutorAnswer {
+    answer: String,
+    citations: Vec<AnswerCitation>,
+}
+
+#[derive(serde::Serialize)]
+struct AnswerCitation {
+    chunk_id: String,
+    chunk_index: i32,
+    excerpt: String,
 }
 
 #[tauri::command]
@@ -115,6 +140,97 @@ fn list_documents() -> Result<Vec<StoredDocument>, String> {
             file_size: row.get(3),
             created_at: row.get(4),
             chunk_count: row.get(5),
+        })
+        .collect())
+}
+
+#[tauri::command]
+fn get_document_chunks(document_id: String) -> Result<Vec<StoredChunk>, String> {
+    let Some(mut client) = connect_database()? else {
+        return Ok(Vec::new());
+    };
+
+    ensure_schema(&mut client)?;
+    load_chunks(&mut client, &document_id)
+}
+
+#[tauri::command]
+fn ask_document_question(document_id: String, question: String) -> Result<TutorAnswer, String> {
+    let Some(mut client) = connect_database()? else {
+        return Err(
+            "PostgreSQL is not connected. Set DATABASE_URL and run the Tauri app.".to_string(),
+        );
+    };
+
+    ensure_schema(&mut client)?;
+    let chunks = load_chunks(&mut client, &document_id)?;
+    let terms = search_terms(&question);
+
+    if terms.is_empty() {
+        return Err("Ask a more specific question so I can search the document.".to_string());
+    }
+
+    let mut scored = chunks
+        .into_iter()
+        .map(|chunk| {
+            let lower = chunk.text.to_lowercase();
+            let score = terms
+                .iter()
+                .filter(|term| lower.contains(term.as_str()))
+                .count();
+            (score, chunk)
+        })
+        .filter(|(score, _)| *score > 0)
+        .collect::<Vec<_>>();
+
+    scored.sort_by(|left, right| right.0.cmp(&left.0));
+
+    let citations = scored
+        .into_iter()
+        .take(3)
+        .map(|(_, chunk)| AnswerCitation {
+            excerpt: excerpt(&chunk.text, 360),
+            chunk_id: chunk.id,
+            chunk_index: chunk.chunk_index,
+        })
+        .collect::<Vec<_>>();
+
+    if citations.is_empty() {
+        return Ok(TutorAnswer {
+            answer: "I could not find matching support in the selected document chunks. Try rephrasing or import more material.".to_string(),
+            citations,
+        });
+    }
+
+    let answer = format!(
+        "I found {} relevant source chunk{}. Full local LLM synthesis is still pending, so this answer is grounded as retrieved evidence for now.",
+        citations.len(),
+        if citations.len() == 1 { "" } else { "s" }
+    );
+
+    Ok(TutorAnswer { answer, citations })
+}
+
+fn load_chunks(client: &mut Client, document_id: &str) -> Result<Vec<StoredChunk>, String> {
+    let rows = client
+        .query(
+            "SELECT id, chunk_index, text, start_offset, end_offset, token_estimate
+             FROM chunks
+             WHERE document_id = $1
+             ORDER BY chunk_index ASC",
+            &[&document_id],
+        )
+        .map_err(|error| format!("Failed to load chunks: {error}"))?;
+
+    Ok(rows
+        .into_iter()
+        .map(|row| StoredChunk {
+            id: row.get(0),
+            chunk_index: row.get(1),
+            text: row.get(2),
+            start_offset: row.get(3),
+            end_offset: row.get(4),
+            token_estimate: row.get(5),
         })
         .collect())
 }
@@ -193,6 +309,29 @@ fn ensure_schema(client: &mut Client) -> Result<(), String> {
     client
         .batch_execute(POSTGRES_SCHEMA)
         .map_err(|error| format!("Failed to apply PostgreSQL schema: {error}"))
+}
+
+fn search_terms(question: &str) -> Vec<String> {
+    question
+        .split(|ch: char| !ch.is_ascii_alphanumeric())
+        .map(str::trim)
+        .filter(|term| term.len() > 2)
+        .map(str::to_lowercase)
+        .filter(|term| {
+            !matches!(
+                term.as_str(),
+                "the" | "and" | "for" | "with" | "from" | "this" | "that" | "what" | "how" | "why"
+            )
+        })
+        .collect()
+}
+
+fn excerpt(text: &str, max_chars: usize) -> String {
+    let mut output = text.chars().take(max_chars).collect::<String>();
+    if text.chars().count() > max_chars {
+        output.push_str("...");
+    }
+    output
 }
 
 fn normalize_text(text: &str) -> String {
