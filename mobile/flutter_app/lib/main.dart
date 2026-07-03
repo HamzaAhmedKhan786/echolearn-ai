@@ -15,7 +15,7 @@ class EchoLearnMobileApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF0891B2),
+          seedColor: const Color(0xFF22C55E),
           brightness: Brightness.dark,
         ),
         scaffoldBackgroundColor: const Color(0xFF0B1020),
@@ -53,7 +53,13 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('EchoLearn AI'),
+        title: const Row(
+          children: [
+            EchoLearnMark(size: 30),
+            SizedBox(width: 10),
+            Text('EchoLearn AI'),
+          ],
+        ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),
@@ -116,12 +122,12 @@ class LibraryPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return const PageFrame(
       title: 'Library',
-      subtitle: 'Import private study documents for offline reading.',
+      subtitle: 'Import private PDF, DOCX, EPUB, and text documents.',
       children: [
         ActionPanel(
           icon: Icons.upload_file,
           title: 'Import document',
-          body: 'PDF, TXT, DOCX, EPUB, and OCR flows will connect through native bridges.',
+          body: 'Desktop extraction is ready; mobile native picker and parser bridges are next.',
         ),
         MetricGrid(
           items: [
@@ -282,6 +288,37 @@ class ActionPanel extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class EchoLearnMark extends StatelessWidget {
+  const EchoLearnMark({required this.size, super.key});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF67E8F9), Color(0xFF22C55E), Color(0xFFBEF264)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: const Center(
+        child: Text(
+          'E',
+          style: TextStyle(
+            color: Color(0xFF0B1020),
+            fontWeight: FontWeight.w900,
+          ),
         ),
       ),
     );

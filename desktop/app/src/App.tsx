@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { extractDocumentText, isImportableDocument } from "./documentParsers";
 import "./App.css";
 
 const navItems = ["Library", "Reader", "AI Tutor", "Flashcards", "Quizzes", "Models", "Settings"];
@@ -87,8 +88,8 @@ function App() {
     setActivePage("Reader");
     setImportResult(null);
 
-    if (!isTextImportable(file)) {
-      const message = `Document "${file.name}" is selected. Native parsing for this file type is planned next.`;
+    if (!isImportableDocument(file)) {
+      const message = `Document "${file.name}" is selected, but this type is not supported yet.`;
       setImportStatus(message);
       setChatMessages([message]);
       return;
@@ -97,7 +98,7 @@ function App() {
     setImportStatus(`Importing "${file.name}"...`);
 
     try {
-      const text = await file.text();
+      const text = await extractDocumentText(file);
       const result = await importTextDocument(file, text);
       setImportResult(result);
       setSelectedDocument({
@@ -117,7 +118,7 @@ function App() {
         `Document "${file.name}" is imported into ${result.chunk_count} local text chunks.`,
         result.persisted
           ? "Saved in PostgreSQL. Embeddings and FAISS indexing are the next backend step."
-          : "Preview import only. Set DATABASE_URL in Tauri to persist to PostgreSQL.",
+          : "Preview import only. Run the Tauri app with DATABASE_URL to persist to PostgreSQL.",
       ]);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -421,13 +422,13 @@ function Hero({ onUploadClick }: { onUploadClick: () => void }) {
         <div className="badge">Local RAG / GGUF / FAISS</div>
         <h2>Turn private study files into an offline tutor.</h2>
         <p>
-          Import notes, books, papers, and lecture files. Read, ask scoped questions,
-          and prepare study material without sending documents to the cloud.
+          Import PDF, DOCX, EPUB, and text files. Read extracted chunks, ask scoped questions,
+          and prepare study material with local-first storage.
         </p>
 
         <div className="actions">
           <button onClick={onUploadClick}>Start reading</button>
-          <button className="ghost">Model manager</button>
+          <button className="ghost">Local models</button>
         </div>
       </div>
 
@@ -436,8 +437,8 @@ function Hero({ onUploadClick }: { onUploadClick: () => void }) {
           <span />
           <span />
           <span />
-          <strong>Grounded answer</strong>
-          <p>3 source chunks ready</p>
+          <strong>EchoLearn grounded answer</strong>
+          <p>PDF / DOCX / EPUB extraction ready</p>
         </div>
       </div>
     </section>
@@ -447,7 +448,7 @@ function Hero({ onUploadClick }: { onUploadClick: () => void }) {
 function FeatureCards() {
   return (
     <section className="cards">
-      <Feature icon="DOC" title="Document Reader" text="PDF, DOCX, TXT, EPUB, and OCR-ready scanned files." />
+      <Feature icon="DOC" title="Document Reader" text="PDF, DOCX, TXT, EPUB, Markdown, and web text." />
       <Feature icon="QA" title="Ask by Scope" text="Answer from a sentence, paragraph, page, chapter, or full document." />
       <Feature icon="ST" title="Study Tools" text="Summaries, flashcards, quizzes, notes, and definitions." />
     </section>
@@ -600,14 +601,6 @@ function DocumentPanel({
         )}
       </div>
     </section>
-  );
-}
-
-function isTextImportable(file: File) {
-  const extension = file.name.split(".").pop()?.toLowerCase();
-  return Boolean(
-    file.type.startsWith("text/") ||
-      ["txt", "md", "markdown", "csv", "json", "html", "xml"].includes(extension ?? ""),
   );
 }
 
