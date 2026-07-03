@@ -56,6 +56,15 @@ type TutorAnswer = {
   }>;
 };
 
+type StudyItem = {
+  id: string;
+  kind: string;
+  prompt: string;
+  answer: string;
+  source_chunk_id: string;
+  source_chunk_index: number;
+};
+
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activePage, setActivePage] = useState("Library");
@@ -66,6 +75,10 @@ function App() {
   const [documents, setDocuments] = useState<StoredDocument[]>([]);
   const [selectedDocument, setSelectedDocument] = useState<StoredDocument | null>(null);
   const [readerChunks, setReaderChunks] = useState<StoredChunk[]>([]);
+  const [bookmarkedChunkIds, setBookmarkedChunkIds] = useState<string[]>([]);
+  const [readerSearch, setReaderSearch] = useState("");
+  const [fontScale, setFontScale] = useState(1);
+  const [studyItems, setStudyItems] = useState<StudyItem[]>([]);
   const [importStatus, setImportStatus] = useState("No document imported yet.");
   const [chatMessages, setChatMessages] = useState<string[]>([
     "Upload a document and I will answer only from its content.",
@@ -110,6 +123,8 @@ function App() {
         created_at: new Date().toISOString(),
       });
       setReaderChunks(result.chunks ?? []);
+      setBookmarkedChunkIds([]);
+      setStudyItems(generatePreviewStudyItems(result.chunks ?? []));
       setImportStatus(
         `Imported ${result.chunk_count} chunks from ${result.character_count.toLocaleString()} characters${result.persisted ? " and saved to PostgreSQL" : ""}.`,
       );
@@ -174,10 +189,21 @@ function App() {
     setActivePage("Reader");
 
     try {
-      setReaderChunks(await invoke<StoredChunk[]>("get_document_chunks", { documentId: document.id }));
+      const chunks = await invoke<StoredChunk[]>("get_document_chunks", { documentId: document.id });
+      setReaderChunks(chunks);
+      setStudyItems(await generateStudyItems(document.id, chunks));
     } catch {
       setReaderChunks([]);
+      setStudyItems([]);
     }
+  }
+
+  function toggleBookmark(chunkId: string) {
+    setBookmarkedChunkIds((previous) =>
+      previous.includes(chunkId)
+        ? previous.filter((id) => id !== chunkId)
+        : [...previous, chunkId],
+    );
   }
 
   useEffect(() => {
@@ -329,11 +355,17 @@ function App() {
             documentFile={documentFile}
             selectedDocument={selectedDocument}
             chunks={readerChunks}
+            bookmarkedChunkIds={bookmarkedChunkIds}
+            readerSearch={readerSearch}
+            fontScale={fontScale}
             importResult={importResult}
             importStatus={importStatus}
             documentSize={documentSize}
             onDrop={handleDrop}
             onUploadClick={handleUploadClick}
+            onSearchChange={setReaderSearch}
+            onFontScaleChange={setFontScale}
+            onToggleBookmark={toggleBookmark}
           />
         )}
 
@@ -346,19 +378,11 @@ function App() {
         )}
 
         {activePage === "Flashcards" && (
-          <WorkPage
-            title="Generate memory cards"
-            eyebrow="Study workflow"
-            metrics={["Front/back cards", "Difficulty tags", "Review queue"]}
-          />
+          <StudyToolsPage title="Flashcards" kind="flashcard" items={studyItems} />
         )}
 
         {activePage === "Quizzes" && (
-          <WorkPage
-            title="Create quizzes from selected context"
-            eyebrow="Practice mode"
-            metrics={["Multiple choice", "Short answer", "Page references"]}
-          />
+          <StudyToolsPage title="Quizzes" kind="quiz" items={studyItems} />
         )}
 
         {activePage === "Models" && <ModelsPage />}
@@ -494,21 +518,39 @@ function ReaderPage({
   documentFile,
   selectedDocument,
   chunks,
+  bookmarkedChunkIds,
+  readerSearch,
+  fontScale,
   importResult,
   importStatus,
   documentSize,
   onDrop,
   onUploadClick,
+  onSearchChange,
+  onFontScaleChange,
+  onToggleBookmark,
 }: {
   documentFile: DocumentFile | null;
   selectedDocument: StoredDocument | null;
   chunks: StoredChunk[];
+  bookmarkedChunkIds: string[];
+  readerSearch: string;
+  fontScale: number;
   importResult: ImportResult | null;
   importStatus: string;
   documentSize: string;
   onDrop: (event: React.DragEvent<HTMLDivElement>) => void;
   onUploadClick: () => void;
+  onSearchChange: (value: string) => void;
+  onFontScaleChange: (value: number) => void;
+  onToggleBookmark: (chunkId: string) => void;
 }) {
+  const visibleChunks = chunks.filter((chunk) =>
+    readerSearch.trim()
+      ? chunk.text.toLowerCase().includes(readerSearch.trim().toLowerCase())
+      : true,
+  );
+
   return (
     <>
       <DocumentPanel
@@ -521,23 +563,34 @@ function ReaderPage({
       />
       <section className="readerSurface">
         <div className="readerToolbar">
-          <button>A-</button>
-          <button>A+</button>
+          <button onClick={() => onFontScaleChange(Math.max(0.85, fontScale - 0.1))}>A-</button>
+          <button onClick={() => onFontScaleChange(Math.min(1.35, fontScale + 0.1))}>A+</button>
           <button>Listen</button>
-          <button>Bookmark</button>
+          <input
+            aria-label="Search document"
+            placeholder="Search chunks..."
+            value={readerSearch}
+            onChange={(event) => onSearchChange(event.target.value)}
+          />
+          <span>{bookmarkedChunkIds.length} bookmarks</span>
         </div>
-        <article>
+        <article style={{ fontSize: `${fontScale}rem` }}>
           <h3>{selectedDocument?.title ?? documentFile?.name ?? "No document loaded"}</h3>
           <p>
             {importResult
               ? `${importResult.chunk_count} chunks are ready for embeddings, citations, and local Q&A.`
               : "The reader canvas is ready for parsed text, sentence highlighting, page navigation, and local text-to-speech playback."}
           </p>
-          {chunks.length > 0 && (
+          {visibleChunks.length > 0 && (
             <div className="chunkList">
-              {chunks.slice(0, 8).map((chunk) => (
+              {visibleChunks.slice(0, 12).map((chunk) => (
                 <section className="chunkItem" key={chunk.id}>
-                  <strong>Chunk {chunk.chunk_index + 1}</strong>
+                  <div className="chunkHeader">
+                    <strong>Chunk {chunk.chunk_index + 1}</strong>
+                    <button onClick={() => onToggleBookmark(chunk.id)}>
+                      {bookmarkedChunkIds.includes(chunk.id) ? "Saved" : "Bookmark"}
+                    </button>
+                  </div>
                   <p>{chunk.text}</p>
                 </section>
               ))}
@@ -546,6 +599,38 @@ function ReaderPage({
         </article>
       </section>
     </>
+  );
+}
+
+function StudyToolsPage({
+  title,
+  kind,
+  items,
+}: {
+  title: string;
+  kind: string;
+  items: StudyItem[];
+}) {
+  const visibleItems = items.filter((item) => item.kind === kind);
+
+  return (
+    <section className="documentPanel workPanel">
+      <div className="badge">Generated from chunks</div>
+      <h2>{title}</h2>
+      {visibleItems.length ? (
+        <div className="studyList">
+          {visibleItems.map((item) => (
+            <article className="studyItem" key={item.id}>
+              <strong>{item.prompt}</strong>
+              <p>{item.answer}</p>
+              <span>Source chunk {item.source_chunk_index + 1}</span>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p>Import or open a document to generate study items.</p>
+      )}
+    </section>
   );
 }
 
@@ -678,6 +763,42 @@ async function askStoredDocument(
       citations,
     };
   }
+}
+
+async function generateStudyItems(documentId: string, fallbackChunks: StoredChunk[]) {
+  try {
+    const items = await invoke<StudyItem[]>("generate_study_items", { documentId });
+    return items.length ? items : generatePreviewStudyItems(fallbackChunks);
+  } catch {
+    return generatePreviewStudyItems(fallbackChunks);
+  }
+}
+
+function generatePreviewStudyItems(chunks: StoredChunk[]) {
+  return chunks.slice(0, 12).map((chunk, index) => {
+    const sentence = firstUsefulSentence(chunk.text);
+    const isFlashcard = index % 2 === 0;
+
+    return {
+      id: `study-${chunk.id}-${index}`,
+      kind: isFlashcard ? "flashcard" : "quiz",
+      prompt: isFlashcard
+        ? `Explain this idea: ${excerptPreview(sentence, 120)}`
+        : `What is best supported by chunk ${chunk.chunk_index + 1}?`,
+      answer: excerptPreview(chunk.text, 420),
+      source_chunk_id: chunk.id,
+      source_chunk_index: chunk.chunk_index,
+    };
+  });
+}
+
+function firstUsefulSentence(text: string) {
+  return (
+    text
+      .split(/[.!?\n]/)
+      .map((part) => part.trim())
+      .find((part) => part.length > 24) || text.trim()
+  );
 }
 
 function chunkTextPreview(documentId: string, text: string) {

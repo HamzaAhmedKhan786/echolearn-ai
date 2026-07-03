@@ -511,13 +511,24 @@ button {
   margin-bottom: 18px;
 }
 
-.readerToolbar button {
+.readerToolbar button,
+.readerToolbar input,
+.readerToolbar span {
   min-height: 36px;
   padding: 8px 12px;
   border-radius: 8px;
   color: #e2e8f0;
   background: rgba(148, 163, 184, 0.14);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.readerToolbar button {
   cursor: pointer;
+}
+
+.readerToolbar input {
+  min-width: 220px;
+  outline: none;
 }
 
 .readerSurface article {
@@ -555,9 +566,55 @@ button {
   color: #67e8f9;
 }
 
+.chunkHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.chunkHeader button {
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: #062018;
+  background: #bef264;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 850;
+}
+
 .chunkItem p {
   margin: 8px 0 0;
   max-width: none;
+}
+
+.studyList {
+  margin-top: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.studyItem {
+  padding: 16px;
+  border-radius: 8px;
+  color: #dbeafe;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(15, 23, 42, 0.76);
+}
+
+.studyItem strong {
+  color: #67e8f9;
+}
+
+.studyItem span {
+  display: inline-flex;
+  margin-top: 10px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  color: #052e16;
+  background: #86efac;
+  font-size: 12px;
+  font-weight: 850;
 }
 
 .aiTutor {

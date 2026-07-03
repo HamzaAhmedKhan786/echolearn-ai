@@ -21,7 +21,8 @@ pub fn run() {
             import_document_text,
             list_documents,
             get_document_chunks,
-            ask_document_question
+            ask_document_question,
+            generate_study_items
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -80,6 +81,16 @@ struct AnswerCitation {
     chunk_id: String,
     chunk_index: i32,
     excerpt: String,
+}
+
+#[derive(serde::Serialize)]
+struct StudyItem {
+    id: String,
+    kind: String,
+    prompt: String,
+    answer: String,
+    source_chunk_id: String,
+    source_chunk_index: i32,
 }
 
 #[tauri::command]
@@ -173,17 +184,18 @@ fn ask_document_question(document_id: String, question: String) -> Result<TutorA
     let mut scored = chunks
         .into_iter()
         .map(|chunk| {
-            let lower = chunk.text.to_lowercase();
-            let score = terms
-                .iter()
-                .filter(|term| lower.contains(term.as_str()))
-                .count();
+            let score = retrieval_score(&question, &chunk.text);
             (score, chunk)
         })
-        .filter(|(score, _)| *score > 0)
+        .filter(|(score, _)| *score > 0.0)
         .collect::<Vec<_>>();
 
-    scored.sort_by(|left, right| right.0.cmp(&left.0));
+    scored.sort_by(|left, right| {
+        right
+            .0
+            .partial_cmp(&left.0)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     let citations = scored
         .into_iter()
@@ -209,6 +221,44 @@ fn ask_document_question(document_id: String, question: String) -> Result<TutorA
     );
 
     Ok(TutorAnswer { answer, citations })
+}
+
+#[tauri::command]
+fn generate_study_items(document_id: String) -> Result<Vec<StudyItem>, String> {
+    let Some(mut client) = connect_database()? else {
+        return Ok(Vec::new());
+    };
+
+    ensure_schema(&mut client)?;
+    let chunks = load_chunks(&mut client, &document_id)?;
+
+    Ok(chunks
+        .into_iter()
+        .take(12)
+        .enumerate()
+        .map(|(index, chunk)| {
+            let lead = first_sentence(&chunk.text);
+            StudyItem {
+                id: format!("study-{}-{index}", chunk.id),
+                kind: if index % 2 == 0 {
+                    "flashcard".to_string()
+                } else {
+                    "quiz".to_string()
+                },
+                prompt: if index % 2 == 0 {
+                    format!("Explain this key idea: {}", excerpt(&lead, 120))
+                } else {
+                    format!(
+                        "Which statement is best supported by chunk {}?",
+                        chunk.chunk_index + 1
+                    )
+                },
+                answer: excerpt(&chunk.text, 420),
+                source_chunk_id: chunk.id,
+                source_chunk_index: chunk.chunk_index,
+            }
+        })
+        .collect())
 }
 
 fn load_chunks(client: &mut Client, document_id: &str) -> Result<Vec<StoredChunk>, String> {
@@ -326,12 +376,42 @@ fn search_terms(question: &str) -> Vec<String> {
         .collect()
 }
 
+fn retrieval_score(question: &str, text: &str) -> f32 {
+    let query_terms = search_terms(question);
+    let text_terms = search_terms(text);
+
+    if query_terms.is_empty() || text_terms.is_empty() {
+        return 0.0;
+    }
+
+    let mut score = 0.0;
+    for term in &query_terms {
+        let matches = text_terms
+            .iter()
+            .filter(|candidate| *candidate == term)
+            .count();
+        if matches > 0 {
+            score += 1.0 + (matches as f32).ln();
+        }
+    }
+
+    score / ((query_terms.len() as f32).sqrt() * (text_terms.len() as f32).sqrt())
+}
+
 fn excerpt(text: &str, max_chars: usize) -> String {
     let mut output = text.chars().take(max_chars).collect::<String>();
     if text.chars().count() > max_chars {
         output.push_str("...");
     }
     output
+}
+
+fn first_sentence(text: &str) -> String {
+    text.split(['.', '!', '?', '\n'])
+        .find(|segment| segment.trim().len() > 24)
+        .unwrap_or(text)
+        .trim()
+        .to_string()
 }
 
 fn normalize_text(text: &str) -> String {

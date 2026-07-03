@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'services/echolearn_bridge.dart';
 
 void main() {
   runApp(const EchoLearnMobileApp());
@@ -129,6 +130,11 @@ class LibraryPage extends StatelessWidget {
           title: 'Import document',
           body: 'Desktop extraction is ready; mobile native picker and parser bridges are next.',
         ),
+        ActionPanel(
+          icon: Icons.integration_instructions,
+          title: 'Native bridge contract',
+          body: 'MethodChannel echolearn.ai/native is defined for import, TTS, and grounded Q&A.',
+        ),
         MetricGrid(
           items: [
             MetricItem(label: 'Documents', value: '0'),
@@ -141,6 +147,8 @@ class LibraryPage extends StatelessWidget {
     );
   }
 }
+
+const mobileBridge = EchoLearnBridge();
 
 class ReaderPage extends StatelessWidget {
   const ReaderPage({super.key});
