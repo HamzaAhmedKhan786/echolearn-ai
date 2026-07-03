@@ -1,0 +1,22 @@
+<mxfile host="app.diagrams.net" modified="2026-07-03T00:00:00.000Z" agent="Codex" version="24.7.17">
+  <diagram id="high-level" name="High Level">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="u" value="Learner" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" vertex="1" parent="1"><mxGeometry x="80" y="330" width="40" height="80" as="geometry"/></mxCell>
+        <mxCell id="desktop" value="Desktop App&#xa;React + Tauri" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2fe;strokeColor=#0369a1;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="240" y="170" width="190" height="90" as="geometry"/></mxCell>
+        <mxCell id="mobile" value="Mobile App&#xa;Flutter + Native Bridges" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#15803d;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="240" y="480" width="190" height="90" as="geometry"/></mxCell>
+        <mxCell id="core" value="Shared Local Core&#xa;Documents, RAG, Study Tools" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#b45309;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="560" y="315" width="240" height="110" as="geometry"/></mxCell>
+        <mxCell id="runtime" value="Local AI Runtime&#xa;Embeddings + LLM + TTS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#7c3aed;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="920" y="170" width="220" height="100" as="geometry"/></mxCell>
+        <mxCell id="storage" value="Local Storage&#xa;SQLite + Files + FAISS" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#fee2e2;strokeColor=#b91c1c;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="920" y="475" width="220" height="110" as="geometry"/></mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="u" target="desktop" style="endArrow=block;html=1;rounded=0;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="u" target="mobile" style="endArrow=block;html=1;rounded=0;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="desktop" target="core" value="commands" style="endArrow=block;html=1;rounded=0;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="mobile" target="core" value="native bridge" style="endArrow=block;html=1;rounded=0;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="core" target="runtime" value="infer / embed / speak" style="endArrow=block;html=1;rounded=0;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="core" target="storage" value="read / write" style="endArrow=block;html=1;rounded=0;"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

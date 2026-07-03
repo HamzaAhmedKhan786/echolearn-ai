@@ -1,0 +1,12 @@
+:root {
+  font: 16px/1.45 Inter, ui-sans-serif, system-ui, Segoe UI, Arial, sans-serif;
+  color-scheme: dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+}

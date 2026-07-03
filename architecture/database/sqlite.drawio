@@ -1,0 +1,17 @@
+<mxfile host="app.diagrams.net" modified="2026-07-03T00:00:00.000Z" agent="Codex" version="24.7.17">
+  <diagram id="sqlite-schema" name="SQLite Schema">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" page="1" pageWidth="1400" pageHeight="900">
+      <root>
+        <mxCell id="0"/><mxCell id="1" parent="0"/>
+        <mxCell id="documents" value="documents&#xa;id PK&#xa;title&#xa;file_path&#xa;file_type&#xa;file_size&#xa;content_hash&#xa;created_at" style="swimlane;whiteSpace=wrap;html=1;fillColor=#e0f2fe;strokeColor=#0369a1;" vertex="1" parent="1"><mxGeometry x="80" y="80" width="220" height="210" as="geometry"/></mxCell>
+        <mxCell id="chunks" value="chunks&#xa;id PK&#xa;document_id FK&#xa;chunk_index&#xa;text&#xa;start_offset&#xa;end_offset&#xa;token_estimate" style="swimlane;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#15803d;" vertex="1" parent="1"><mxGeometry x="410" y="80" width="220" height="210" as="geometry"/></mxCell>
+        <mxCell id="study" value="study_items&#xa;id PK&#xa;document_id FK&#xa;type&#xa;front&#xa;back&#xa;source_chunk_id FK" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#b45309;" vertex="1" parent="1"><mxGeometry x="740" y="80" width="220" height="190" as="geometry"/></mxCell>
+        <mxCell id="messages" value="conversation_messages&#xa;id PK&#xa;document_id FK&#xa;role&#xa;content&#xa;scope&#xa;created_at" style="swimlane;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#7c3aed;" vertex="1" parent="1"><mxGeometry x="740" y="360" width="250" height="190" as="geometry"/></mxCell>
+        <mxCell id="models" value="models&#xa;id PK&#xa;name&#xa;kind&#xa;path&#xa;status&#xa;size_bytes" style="swimlane;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#b91c1c;" vertex="1" parent="1"><mxGeometry x="80" y="370" width="220" height="180" as="geometry"/></mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="documents" target="chunks" value="1 to many" style="endArrow=block;html=1;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="documents" target="study" value="1 to many" style="endArrow=block;html=1;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="documents" target="messages" value="1 to many" style="endArrow=block;html=1;"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

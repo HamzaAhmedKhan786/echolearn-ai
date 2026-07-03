@@ -1,0 +1,17 @@
+<mxfile host="app.diagrams.net" modified="2026-07-03T00:00:00.000Z" agent="Codex" version="24.7.17">
+  <diagram id="faiss-index" name="FAISS Index">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" page="1" pageWidth="1400" pageHeight="900">
+      <root>
+        <mxCell id="0"/><mxCell id="1" parent="0"/>
+        <mxCell id="chunks" value="SQLite chunks&#xa;text + metadata + offsets" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#e0f2fe;strokeColor=#0369a1;" vertex="1" parent="1"><mxGeometry x="120" y="250" width="220" height="120" as="geometry"/></mxCell>
+        <mxCell id="embed" value="Embedding Model&#xa;bge-small / MiniLM / E5" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#b45309;" vertex="1" parent="1"><mxGeometry x="500" y="250" width="220" height="100" as="geometry"/></mxCell>
+        <mxCell id="faiss" value="FAISS index file&#xa;vector_id =&gt; chunk_id mapping" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#dcfce7;strokeColor=#15803d;" vertex="1" parent="1"><mxGeometry x="900" y="250" width="240" height="120" as="geometry"/></mxCell>
+        <mxCell id="query" value="Question vector" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#7c3aed;" vertex="1" parent="1"><mxGeometry x="500" y="500" width="220" height="70" as="geometry"/></mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="chunks" target="embed" value="chunk text" style="endArrow=block;html=1;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="embed" target="faiss" value="vectors" style="endArrow=block;html=1;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="query" target="faiss" value="top-k search" style="endArrow=block;html=1;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="faiss" target="chunks" value="chunk ids for citations" style="endArrow=block;html=1;dashed=1;"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

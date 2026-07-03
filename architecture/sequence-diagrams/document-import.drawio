@@ -1,0 +1,19 @@
+<mxfile host="app.diagrams.net" modified="2026-07-03T00:00:00.000Z" agent="Codex" version="24.7.17">
+  <diagram id="document-import" name="Document Import">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" page="1" pageWidth="1400" pageHeight="900">
+      <root>
+        <mxCell id="0"/><mxCell id="1" parent="0"/>
+        <mxCell id="ui" value="UI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2fe;strokeColor=#0369a1;" vertex="1" parent="1"><mxGeometry x="80" y="60" width="120" height="50" as="geometry"/></mxCell>
+        <mxCell id="cmd" value="Tauri import_document" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#1d4ed8;" vertex="1" parent="1"><mxGeometry x="300" y="60" width="170" height="50" as="geometry"/></mxCell>
+        <mxCell id="parser" value="Parser Service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#b45309;" vertex="1" parent="1"><mxGeometry x="570" y="60" width="150" height="50" as="geometry"/></mxCell>
+        <mxCell id="chunker" value="Chunker" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#b45309;" vertex="1" parent="1"><mxGeometry x="810" y="60" width="130" height="50" as="geometry"/></mxCell>
+        <mxCell id="store" value="SQLite + FAISS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#15803d;" vertex="1" parent="1"><mxGeometry x="1040" y="60" width="150" height="50" as="geometry"/></mxCell>
+        <mxCell id="m1" value="1. user selects file path" edge="1" parent="1" source="ui" target="cmd" style="endArrow=block;html=1;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="m2" value="2. read metadata and text" edge="1" parent="1" source="cmd" target="parser" style="endArrow=block;html=1;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="m3" value="3. normalized document text" edge="1" parent="1" source="parser" target="chunker" style="endArrow=block;html=1;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="m4" value="4. chunks + offsets" edge="1" parent="1" source="chunker" target="store" style="endArrow=block;html=1;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="m5" value="5. import summary" edge="1" parent="1" source="cmd" target="ui" style="endArrow=block;html=1;dashed=1;"><mxGeometry relative="1" as="geometry"><mxPoint x="300" y="250" as="sourcePoint"/><mxPoint x="200" y="250" as="targetPoint"/></mxGeometry></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

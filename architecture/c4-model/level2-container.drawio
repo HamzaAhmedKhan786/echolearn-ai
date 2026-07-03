@@ -1,0 +1,22 @@
+<mxfile host="app.diagrams.net" modified="2026-07-03T00:00:00.000Z" agent="Codex" version="24.7.17">
+  <diagram id="c4-level2" name="C4 Level 2">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" page="1" pageWidth="1500" pageHeight="900">
+      <root>
+        <mxCell id="0"/><mxCell id="1" parent="0"/>
+        <mxCell id="ui" value="Desktop UI&#xa;React + Vite" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2fe;strokeColor=#0369a1;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="90" y="150" width="190" height="90" as="geometry"/></mxCell>
+        <mxCell id="tauri" value="Tauri Command Layer&#xa;Rust IPC commands" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#1d4ed8;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="390" y="150" width="220" height="90" as="geometry"/></mxCell>
+        <mxCell id="core" value="Shared Core Services&#xa;import, parse, chunk, ask, study" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#b45309;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="740" y="150" width="250" height="100" as="geometry"/></mxCell>
+        <mxCell id="sqlite" value="SQLite Store&#xa;documents, chunks, notes, history" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#fee2e2;strokeColor=#b91c1c;" vertex="1" parent="1"><mxGeometry x="1120" y="80" width="220" height="100" as="geometry"/></mxCell>
+        <mxCell id="faiss" value="FAISS Index&#xa;chunk vectors" style="shape=cylinder3d;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#dcfce7;strokeColor=#15803d;" vertex="1" parent="1"><mxGeometry x="1120" y="230" width="220" height="100" as="geometry"/></mxCell>
+        <mxCell id="llm" value="Local AI Runtime&#xa;llama.cpp + embedding model + TTS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#7c3aed;" vertex="1" parent="1"><mxGeometry x="740" y="420" width="250" height="100" as="geometry"/></mxCell>
+        <mxCell id="mobile" value="Mobile UI&#xa;Flutter future container" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ecfccb;strokeColor=#65a30d;" vertex="1" parent="1"><mxGeometry x="90" y="420" width="190" height="90" as="geometry"/></mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="ui" target="tauri" value="invoke commands" style="endArrow=block;html=1;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="tauri" target="core" value="service calls" style="endArrow=block;html=1;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="core" target="sqlite" value="metadata + content" style="endArrow=block;html=1;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="core" target="faiss" value="vectors" style="endArrow=block;html=1;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="core" target="llm" value="embed, infer, speak" style="endArrow=block;html=1;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="mobile" target="core" value="native bridge later" style="endArrow=block;html=1;"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

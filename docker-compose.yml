@@ -1,0 +1,24 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: echolearn-postgres
+    environment:
+      POSTGRES_DB: echolearn
+      POSTGRES_USER: echolearn
+      POSTGRES_PASSWORD: echolearn_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - echolearn-postgres-data:/var/lib/postgresql/data
+      - ./shared-core/infrastructure/database/migrations/001_initial_postgres.sql:/docker-entrypoint-initdb.d/001_initial_postgres.sql:ro
+
+  dev-tools:
+    image: python:3.11-slim
+    container_name: echolearn-dev-tools
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+    command: sleep infinity
+
+volumes:
+  echolearn-postgres-data:

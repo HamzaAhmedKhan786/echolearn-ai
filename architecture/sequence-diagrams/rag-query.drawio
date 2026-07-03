@@ -1,0 +1,19 @@
+<mxfile host="app.diagrams.net" modified="2026-07-03T00:00:00.000Z" agent="Codex" version="24.7.17">
+  <diagram id="rag-query" name="RAG Query">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" page="1" pageWidth="1400" pageHeight="900">
+      <root>
+        <mxCell id="0"/><mxCell id="1" parent="0"/>
+        <mxCell id="ui" value="AI Tutor UI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2fe;strokeColor=#0369a1;" vertex="1" parent="1"><mxGeometry x="80" y="80" width="150" height="50" as="geometry"/></mxCell>
+        <mxCell id="retriever" value="Retriever" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#b45309;" vertex="1" parent="1"><mxGeometry x="330" y="80" width="150" height="50" as="geometry"/></mxCell>
+        <mxCell id="index" value="FAISS + SQLite" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#15803d;" vertex="1" parent="1"><mxGeometry x="580" y="80" width="160" height="50" as="geometry"/></mxCell>
+        <mxCell id="guard" value="Grounding Validator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fee2e2;strokeColor=#b91c1c;" vertex="1" parent="1"><mxGeometry x="830" y="80" width="170" height="50" as="geometry"/></mxCell>
+        <mxCell id="llm" value="Local LLM" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#7c3aed;" vertex="1" parent="1"><mxGeometry x="1090" y="80" width="140" height="50" as="geometry"/></mxCell>
+        <mxCell id="a" value="1. question + scope" edge="1" parent="1" source="ui" target="retriever" style="endArrow=block;html=1;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="b" value="2. vector + metadata search" edge="1" parent="1" source="retriever" target="index" style="endArrow=block;html=1;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="c" value="3. ranked chunks" edge="1" parent="1" source="index" target="guard" style="endArrow=block;html=1;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="d" value="4. grounded prompt" edge="1" parent="1" source="guard" target="llm" style="endArrow=block;html=1;"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e" value="5. answer + citations" edge="1" parent="1" source="llm" target="ui" style="endArrow=block;html=1;dashed=1;"><mxGeometry relative="1" as="geometry"><mxPoint x="1090" y="260" as="sourcePoint"/><mxPoint x="230" y="260" as="targetPoint"/></mxGeometry></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

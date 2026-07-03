@@ -1,0 +1,73 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node / React / Tauri
+node_modules/
+dist/
+build/
+.next/
+desktop/app/node_modules/
+desktop/app/dist/
+
+# Rust / Tauri
+target/
+desktop/tauri/target/
+
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+build/
+mobile/flutter_app/build/
+
+# Android
+*.apk
+*.aab
+.gradle/
+local.properties
+
+# iOS / macOS
+Pods/
+DerivedData/
+*.xcworkspace
+*.xcuserstate
+
+# Models
+models/**/*.gguf
+models/**/*.onnx
+models/**/*.bin
+models/**/*.safetensors
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+databases/
+cache/
+
+# Generated files
+coverage/
+htmlcov/
+reports/

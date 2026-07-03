@@ -219,7 +219,8 @@ Features:
 
 ## Storage
 
-* SQLite
+* PostgreSQL
+* SQLite reference schema for future embedded mode
 * Drift
 * Hive
 * Local encrypted storage
