@@ -31,6 +31,7 @@ pub fn run() {
             get_runtime_config,
             save_runtime_config,
             build_vector_index,
+            validate_tts_setup,
             speak_text
         ])
         .run(tauri::generate_context!())
@@ -128,6 +129,18 @@ struct IndexResult {
 #[derive(serde::Serialize)]
 struct SpeechResult {
     audio_path: String,
+    engine: String,
+}
+
+#[derive(serde::Serialize)]
+struct TtsStatus {
+    piper_binary_exists: bool,
+    piper_voice_exists: bool,
+    piper_voice_config_exists: bool,
+    piper_ready: bool,
+    windows_tts_available: bool,
+    recommended_voice_dir: String,
+    messages: Vec<String>,
 }
 
 #[tauri::command]
@@ -477,23 +490,26 @@ fn build_vector_index(document_id: String) -> Result<IndexResult, String> {
 }
 
 #[tauri::command]
+fn validate_tts_setup() -> Result<TtsStatus, String> {
+    let config = get_runtime_config()?;
+    Ok(build_tts_status(&config))
+}
+
+#[tauri::command]
 fn speak_text(text: String) -> Result<SpeechResult, String> {
     let config = get_runtime_config()?;
-    if config.piper_binary_path.trim().is_empty() || config.piper_voice_path.trim().is_empty() {
-        return Err(
-            "Set Piper binary and voice model paths in Models before using TTS.".to_string(),
-        );
+    let status = build_tts_status(&config);
+
+    if !status.piper_ready {
+        speak_with_windows_tts(&text)?;
+        return Ok(SpeechResult {
+            audio_path: "windows-native-tts".to_string(),
+            engine: "windows-native".to_string(),
+        });
     }
 
     let binary = Path::new(&config.piper_binary_path);
     let voice = Path::new(&config.piper_voice_path);
-    if !binary.exists() {
-        return Err("Piper binary path does not exist.".to_string());
-    }
-    if !voice.exists() {
-        return Err("Piper voice model path does not exist.".to_string());
-    }
-
     let output_dir = default_audio_dir();
     fs::create_dir_all(&output_dir)
         .map_err(|error| format!("Failed to create TTS output directory: {error}"))?;
@@ -529,7 +545,86 @@ fn speak_text(text: String) -> Result<SpeechResult, String> {
 
     Ok(SpeechResult {
         audio_path: audio_path.to_string_lossy().to_string(),
+        engine: "piper".to_string(),
     })
+}
+
+fn build_tts_status(config: &RuntimeConfig) -> TtsStatus {
+    let binary = Path::new(config.piper_binary_path.trim());
+    let voice = Path::new(config.piper_voice_path.trim());
+    let voice_config_path = voice_config_path(voice);
+    let piper_binary_exists = !config.piper_binary_path.trim().is_empty() && binary.exists();
+    let piper_voice_exists = !config.piper_voice_path.trim().is_empty() && voice.exists();
+    let piper_voice_config_exists = piper_voice_exists && voice_config_path.exists();
+    let piper_ready = piper_binary_exists && piper_voice_exists && piper_voice_config_exists;
+    let windows_tts_available = cfg!(target_os = "windows");
+    let mut messages = Vec::new();
+
+    if piper_ready {
+        messages.push("Piper is ready: binary, voice, and voice config were found.".to_string());
+    } else {
+        if !piper_binary_exists {
+            messages.push("Piper binary is missing or the path is empty.".to_string());
+        }
+        if !piper_voice_exists {
+            messages.push("Piper .onnx voice model is missing or the path is empty.".to_string());
+        }
+        if piper_voice_exists && !piper_voice_config_exists {
+            messages.push(format!(
+                "Piper voice config is missing. Expected: {}",
+                voice_config_path.to_string_lossy()
+            ));
+        }
+        if windows_tts_available {
+            messages.push("Windows native TTS fallback is available.".to_string());
+        }
+    }
+
+    TtsStatus {
+        piper_binary_exists,
+        piper_voice_exists,
+        piper_voice_config_exists,
+        piper_ready,
+        windows_tts_available,
+        recommended_voice_dir: default_piper_voice_dir().to_string_lossy().to_string(),
+        messages,
+    }
+}
+
+fn voice_config_path(voice_path: &Path) -> PathBuf {
+    let mut path = voice_path.to_path_buf();
+    let file_name = voice_path
+        .file_name()
+        .map(|name| format!("{}.json", name.to_string_lossy()))
+        .unwrap_or_else(|| "voice.onnx.json".to_string());
+    path.set_file_name(file_name);
+    path
+}
+
+fn speak_with_windows_tts(text: &str) -> Result<(), String> {
+    if !cfg!(target_os = "windows") {
+        return Err(
+            "Piper is not configured and native TTS fallback is only available on Windows."
+                .to_string(),
+        );
+    }
+
+    let output = Command::new("powershell")
+        .arg("-NoProfile")
+        .arg("-Command")
+        .arg("Add-Type -AssemblyName System.Speech; $speaker = New-Object System.Speech.Synthesis.SpeechSynthesizer; $speaker.Speak($env:ECHOLEARN_TTS_TEXT)")
+        .env("ECHOLEARN_TTS_TEXT", text)
+        .output()
+        .map_err(|error| format!("Failed to start Windows native TTS: {error}"))?;
+
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(format!(
+            "Windows native TTS failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ))
+    }
 }
 
 fn load_chunks(client: &mut Client, document_id: &str) -> Result<Vec<StoredChunk>, String> {
@@ -899,6 +994,17 @@ fn default_audio_dir() -> PathBuf {
         .unwrap_or_else(|_| PathBuf::from("."))
         .join("data")
         .join("tts")
+}
+
+fn default_piper_voice_dir() -> PathBuf {
+    std::env::var("LOCALAPPDATA")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+        .join("EchoLearnAI")
+        .join("models")
+        .join("tts")
+        .join("piper")
+        .join("voices")
 }
 
 fn timestamp_millis() -> u128 {

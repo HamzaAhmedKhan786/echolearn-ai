@@ -86,6 +86,16 @@ type IndexResult = {
   index_path: string;
 };
 
+type TtsStatus = {
+  piper_binary_exists: boolean;
+  piper_voice_exists: boolean;
+  piper_voice_config_exists: boolean;
+  piper_ready: boolean;
+  windows_tts_available: boolean;
+  recommended_voice_dir: string;
+  messages: string[];
+};
+
 const defaultRuntimeConfig: RuntimeConfig = {
   cloud_provider: "none",
   cloud_api_base_url: "",
@@ -116,6 +126,7 @@ function App() {
   const [studyItems, setStudyItems] = useState<StudyItem[]>([]);
   const [runtimeConfig, setRuntimeConfig] = useState<RuntimeConfig>(defaultRuntimeConfig);
   const [modelStatus, setModelStatus] = useState("Configure local model paths to enable LLM synthesis and Piper TTS.");
+  const [ttsStatus, setTtsStatus] = useState<TtsStatus | null>(null);
   const [showStartupGuide, setShowStartupGuide] = useState(true);
   const [importStatus, setImportStatus] = useState("No document imported yet.");
   const [chatMessages, setChatMessages] = useState<string[]>([
@@ -246,15 +257,23 @@ function App() {
 
   useEffect(() => {
     void refreshDocuments();
-    void loadRuntimeConfig();
+    void (async () => {
+      try {
+        const config = await invoke<RuntimeConfig>("get_runtime_config");
+        setRuntimeConfig(config);
+        setTtsStatus(await invoke<TtsStatus>("validate_tts_setup"));
+      } catch {
+        setRuntimeConfig(defaultRuntimeConfig);
+        setTtsStatus(null);
+      }
+    })();
   }, []);
 
-  async function loadRuntimeConfig() {
+  async function refreshTtsStatus() {
     try {
-      const config = await invoke<RuntimeConfig>("get_runtime_config");
-      setRuntimeConfig(config);
+      setTtsStatus(await invoke<TtsStatus>("validate_tts_setup"));
     } catch {
-      setRuntimeConfig(defaultRuntimeConfig);
+      setTtsStatus(null);
     }
   }
 
@@ -315,6 +334,7 @@ function App() {
       const saved = await invoke<RuntimeConfig>("save_runtime_config", { config });
       setRuntimeConfig(saved);
       setModelStatus("Runtime paths saved. Rebuild the vector index after changing embedding/index settings.");
+      await refreshTtsStatus();
     } catch (error) {
       setModelStatus(`Runtime paths are kept in this preview. Tauri save failed: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -346,10 +366,14 @@ function App() {
     }
 
     try {
-      const result = await invoke<{ audio_path: string }>("speak_text", {
+      const result = await invoke<{ audio_path: string; engine: string }>("speak_text", {
         text: excerptPreview(text, 1200),
       });
-      setImportStatus(`TTS audio generated: ${result.audio_path}`);
+      setImportStatus(
+        result.engine === "piper"
+          ? `TTS audio generated: ${result.audio_path}`
+          : "Read aloud using Windows native TTS fallback.",
+      );
     } catch (error) {
       setImportStatus(`TTS failed: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -504,8 +528,10 @@ function App() {
             key={JSON.stringify(runtimeConfig)}
             config={runtimeConfig}
             status={modelStatus}
+            ttsStatus={ttsStatus}
             onSave={handleSaveRuntimeConfig}
             onBuildIndex={handleBuildIndex}
+            onValidateTts={refreshTtsStatus}
           />
         )}
 
@@ -1031,13 +1057,17 @@ function WorkPage({
 function ModelsPage({
   config,
   status,
+  ttsStatus,
   onSave,
   onBuildIndex,
+  onValidateTts,
 }: {
   config: RuntimeConfig;
   status: string;
+  ttsStatus: TtsStatus | null;
   onSave: (config: RuntimeConfig) => void;
   onBuildIndex: () => void;
+  onValidateTts: () => void;
 }) {
   const [draft, setDraft] = useState(config);
 
@@ -1140,7 +1170,51 @@ function ModelsPage({
           screenshots, or shared docs.
         </p>
       </section>
+
+      <section className="documentPanel runtimePanel">
+        <div className="panelHeader">
+          <h3>TTS setup</h3>
+          <span>{ttsStatus?.piper_ready ? "Piper ready" : "Piper with Windows fallback"}</span>
+        </div>
+
+        <div className="ttsChecklist">
+          <TtsCheck label="Piper binary" ready={Boolean(ttsStatus?.piper_binary_exists)} />
+          <TtsCheck label="Voice .onnx" ready={Boolean(ttsStatus?.piper_voice_exists)} />
+          <TtsCheck label="Voice .onnx.json" ready={Boolean(ttsStatus?.piper_voice_config_exists)} />
+          <TtsCheck label="Windows fallback" ready={Boolean(ttsStatus?.windows_tts_available)} />
+        </div>
+
+        {ttsStatus && (
+          <div className="ttsMessages">
+            {ttsStatus.messages.map((message) => (
+              <p key={message}>{message}</p>
+            ))}
+            <p>Recommended app voice folder: {ttsStatus.recommended_voice_dir}</p>
+          </div>
+        )}
+
+        <div className="runtimeActions">
+          <button onClick={onValidateTts}>Validate TTS</button>
+          <a
+            className="secondaryLink"
+            href="https://huggingface.co/rhasspy/piper-voices/tree/v1.0.0"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Download voices
+          </a>
+        </div>
+      </section>
     </>
+  );
+}
+
+function TtsCheck({ label, ready }: { label: string; ready: boolean }) {
+  return (
+    <div className={ready ? "ttsCheck ready" : "ttsCheck missing"}>
+      <span>{ready ? "OK" : "MISS"}</span>
+      <strong>{label}</strong>
+    </div>
   );
 }
 

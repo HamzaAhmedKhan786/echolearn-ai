@@ -18,6 +18,9 @@ Piper setup:
 - Binary: `C:\Users\DELL\Downloads\setups\piper_windows_amd64\piper\piper.exe`
 - Voice model: still needed.
 - Voice config JSON: still needed.
+- Desktop validates binary, `.onnx`, and `.onnx.json`.
+- Desktop falls back to Windows native TTS if Piper is not ready.
+- Mobile uses native Android/iOS TTS first.
 
 PostgreSQL:
 

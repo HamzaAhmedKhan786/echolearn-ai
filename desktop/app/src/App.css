@@ -878,6 +878,76 @@ button {
   line-height: 1.5;
 }
 
+.ttsChecklist {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ttsCheck {
+  min-width: 0;
+  padding: 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(15, 23, 42, 0.76);
+}
+
+.ttsCheck span {
+  display: inline-flex;
+  margin-bottom: 8px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.ttsCheck.ready span {
+  color: #052e16;
+  background: #86efac;
+}
+
+.ttsCheck.missing span {
+  color: #fee2e2;
+  background: rgba(220, 38, 38, 0.28);
+}
+
+.ttsCheck strong {
+  display: block;
+  color: #dbeafe;
+}
+
+.ttsMessages {
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 8px;
+  color: #a7b3c6;
+  line-height: 1.5;
+  background: rgba(2, 6, 23, 0.42);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.ttsMessages p {
+  margin: 0;
+}
+
+.ttsMessages p + p {
+  margin-top: 8px;
+}
+
+.secondaryLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  color: #e2e8f0;
+  background: rgba(148, 163, 184, 0.14);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  font-weight: 850;
+  text-decoration: none;
+}
+
 .setupSteps,
 .downloadGrid,
 .commandList {
@@ -1031,6 +1101,7 @@ button {
   }
 
   .runtimeGrid,
+  .ttsChecklist,
   .setupSteps,
   .downloadGrid,
   .guideGrid {

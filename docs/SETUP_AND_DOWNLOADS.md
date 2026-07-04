@@ -155,6 +155,13 @@ C:\Users\DELL\Downloads\setups\piper_windows_amd64\piper\piper.exe
 
 You still need a Piper voice `.onnx` file and its matching `.onnx.json` config.
 
+Production TTS behavior:
+
+- Desktop prefers Piper when the binary, `.onnx`, and `.onnx.json` files are valid.
+- Desktop falls back to Windows native TTS when Piper is missing.
+- Mobile uses Android/iOS native TTS first because it is lighter and already on-device.
+- A future installer step can download Piper voices into the app data folder.
+
 After downloading, open EchoLearn `Models` and paste each local path.
 
 ## Run Commands
