@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { extractDocumentText, isImportableDocument } from "./documentParsers";
 import "./App.css";
 
-const navItems = ["Library", "Reader", "AI Tutor", "Flashcards", "Quizzes", "Models", "Setup", "Settings"];
+const navItems = ["Library", "Reader", "AI Tutor", "Flashcards", "Quizzes", "Models", "Get Started", "Settings"];
 
 const scopes = [
   "Current paragraph",
@@ -385,7 +385,7 @@ function App() {
         <StartupGuide
           onClose={() => setShowStartupGuide(false)}
           onOpenSetup={() => {
-            setActivePage("Setup");
+            setActivePage("Get Started");
             setShowStartupGuide(false);
           }}
           onOpenModels={() => {
@@ -535,7 +535,7 @@ function App() {
           />
         )}
 
-        {activePage === "Setup" && <SetupPage />}
+        {activePage === "Get Started" && <SetupPage />}
 
         {activePage === "Settings" && <SettingsPage />}
       </main>
@@ -602,20 +602,20 @@ function StartupGuide({
     <div className="guideOverlay" role="dialog" aria-modal="true" aria-labelledby="guide-title">
       <section className="guideDialog">
         <div className="panelHeader">
-          <h3 id="guide-title">EchoLearn first-run guide</h3>
+          <h3 id="guide-title">Welcome to EchoLearn</h3>
           <button className="iconButton" onClick={onClose} title="Close guide">X</button>
         </div>
 
         <div className="guideGrid">
-          <GuideItem title="Database" text="Use Docker PostgreSQL or your own PostgreSQL. Browser preview can run without saving to PostgreSQL." />
-          <GuideItem title="LLM" text="Use Ollama first, or configure a personal cloud API key. llama.cpp is optional now." />
-          <GuideItem title="TTS" text="Piper needs piper.exe plus a voice .onnx and matching .onnx.json file." />
-          <GuideItem title="Mobile" text="Device Preview is for UI testing. Real mobile import/storage and secure key storage are still pending." />
+          <GuideItem title="Add documents" text="Import PDF, DOCX, EPUB, or text files and keep them private on this device." />
+          <GuideItem title="Ask questions" text="Use local AI with Ollama, or connect your own API key if you prefer a hosted model." />
+          <GuideItem title="Read aloud" text="Use built-in Windows voices immediately, or install a higher-quality Piper voice." />
+          <GuideItem title="Stay private" text="Your documents are designed to stay local unless you choose to connect an external AI provider." />
         </div>
 
         <div className="runtimeActions">
-          <button onClick={onOpenSetup}>Open Setup</button>
-          <button className="secondary" onClick={onOpenModels}>Open Models</button>
+          <button onClick={onOpenSetup}>Get Started</button>
+          <button className="secondary" onClick={onOpenModels}>AI & Voice</button>
           <button className="secondary" onClick={onClose}>Continue</button>
         </div>
       </section>
@@ -636,7 +636,7 @@ function Hero({ onUploadClick }: { onUploadClick: () => void }) {
   return (
     <section className="hero">
       <div className="heroText">
-        <div className="badge">Local RAG / GGUF / FAISS</div>
+        <div className="badge">Private AI study</div>
         <h2>Turn private study files into an offline tutor.</h2>
         <p>
           Import PDF, DOCX, EPUB, and text files. Read extracted chunks, ask scoped questions,
@@ -645,7 +645,7 @@ function Hero({ onUploadClick }: { onUploadClick: () => void }) {
 
         <div className="actions">
           <button onClick={onUploadClick}>Start reading</button>
-          <button className="ghost">Local models</button>
+          <button className="ghost">AI & voice</button>
         </div>
       </div>
 
@@ -1261,81 +1261,63 @@ function SettingsPage() {
 
 const setupDownloads = [
   {
-    name: "Obsidian",
-    purpose: "Open the repo as a documentation vault for notes, errors, and reusable project fixes.",
-    pc: "https://obsidian.md/download",
-    mobile: "Use Google Play or App Store from the same Obsidian download page.",
-  },
-  {
-    name: "Docker Desktop",
-    purpose: "Runs the local PostgreSQL service with docker compose.",
-    pc: "https://docs.docker.com/desktop/setup/install/windows-install/",
-    mobile: "Not required on phone.",
-  },
-  {
-    name: "PostgreSQL",
-    purpose: "Alternative to Docker if you want a normal local database install.",
-    pc: "https://www.postgresql.org/download/windows/",
-    mobile: "Not required on phone.",
-  },
-  {
     name: "Ollama",
-    purpose: "Runs local LLM models with the easiest desktop setup.",
+    purpose: "Use local AI answers without sending documents to a cloud provider.",
     pc: "https://ollama.com/download",
-    mobile: "Run on PC first; mobile can connect later through a backend bridge.",
+    mobile: "Best for desktop use. Mobile can use personal API keys or a later local model manager.",
   },
   {
-    name: "llama.cpp",
-    purpose: "Optional advanced GGUF runtime if you do not want Ollama.",
-    pc: "https://github.com/ggml-org/llama.cpp/releases",
-    mobile: "Advanced later step; desktop is recommended first.",
+    name: "Piper voice",
+    purpose: "Install an optional higher-quality offline reading voice for desktop.",
+    pc: "https://huggingface.co/rhasspy/piper-voices/tree/v1.0.0",
+    mobile: "Mobile uses built-in Android/iOS voices first.",
   },
   {
-    name: "Piper",
-    purpose: "Generates local TTS audio from reader chunks.",
-    pc: "https://github.com/rhasspy/piper/releases",
-    mobile: "Mobile currently uses Android/iOS native TTS.",
+    name: "OpenAI API key",
+    purpose: "Connect a personal hosted AI account instead of downloading local models.",
+    pc: "https://platform.openai.com/api-keys",
+    mobile: "Use only your own key. Never share keys with other users.",
   },
   {
-    name: "Android Studio",
-    purpose: "Gives emulator/device tools for checking the Flutter mobile app.",
-    pc: "https://developer.android.com/studio",
-    mobile: "Not installed on phone.",
+    name: "Gemini API key",
+    purpose: "Use Google Gemini with your own account and current free-tier limits.",
+    pc: "https://ai.google.dev/gemini-api/docs/api-key",
+    mobile: "Keys should be stored securely on the user's device.",
   },
   {
-    name: "Flutter SDK",
-    purpose: "Builds and tests the mobile app.",
-    pc: "https://docs.flutter.dev/get-started/install/windows",
-    mobile: "Not installed on phone.",
+    name: "Groq API key",
+    purpose: "Use fast hosted open models with your own Groq account.",
+    pc: "https://console.groq.com/keys",
+    mobile: "Availability and free limits can change.",
   },
   {
-    name: "Rust",
-    purpose: "Builds the Tauri desktop backend.",
-    pc: "https://www.rust-lang.org/tools/install",
-    mobile: "Not installed on phone.",
+    name: "OpenRouter API key",
+    purpose: "Choose from many hosted models using your own OpenRouter account.",
+    pc: "https://openrouter.ai/keys",
+    mobile: "Some models may be free depending on current provider policy.",
   },
 ];
 
-const setupCommands = [
+const setupChoices = [
   {
-    title: "Check what is installed",
-    command: ".\\scripts\\check-system.ps1",
+    title: "Import a document",
+    text: "Drop or select a PDF, DOCX, EPUB, or text file from Library.",
   },
   {
-    title: "Run browser preview",
-    command: "cd desktop\\app\nnpm run dev",
+    title: "Choose AI mode",
+    text: "Local Ollama keeps processing on your computer. Personal API keys are optional for hosted models.",
   },
   {
-    title: "Run full desktop app",
-    command: "docker compose up -d postgres\n.\\scripts\\dev-tauri.ps1",
+    title: "Choose reading voice",
+    text: "Windows voices work as a fallback. Piper voices give better offline quality when installed.",
   },
   {
-    title: "Run all available tests",
-    command: ".\\scripts\\test-all.ps1",
+    title: "Ask with citations",
+    text: "Open a document, ask a question, and EchoLearn answers from the selected document chunks.",
   },
   {
-    title: "Run mobile tests only",
-    command: "cd mobile\\flutter_app\nflutter test",
+    title: "Review with study tools",
+    text: "Generate flashcards and quiz prompts from imported document chunks.",
   },
 ];
 
@@ -1344,23 +1326,23 @@ function SetupPage() {
     <>
       <section className="documentPanel setupPanel">
         <div className="panelHeader">
-          <h3>First-run setup</h3>
-          <span>PC, mobile, models, and documentation</span>
+          <h3>Get started</h3>
+          <span>Set up EchoLearn for private study</span>
         </div>
 
         <div className="setupSteps">
-          <SetupStep number="1" title="Open this repo in Obsidian" text="Use the repository folder as a vault. The obsidian-vault folder contains starter notes for setup, errors, testing, and reusable fixes." />
-          <SetupStep number="2" title="Check your system" text="Run scripts/check-system.ps1 to see whether Git, Node, Docker, PostgreSQL, Rust, Flutter, Android tooling, Ollama, llama.cpp, and Piper are available." />
-          <SetupStep number="3" title="Install only what is missing" text="Use the official links below. Desktop users need PostgreSQL or Docker; mobile developers need Flutter and Android Studio." />
-          <SetupStep number="4" title="Configure model runtime" text="Open Models, set Ollama endpoint and model name first. Add llama.cpp and Piper paths when you want GGUF fallback and desktop TTS." />
-          <SetupStep number="5" title="Run tests before changes" text="Use scripts/test-all.ps1 for the normal suite. Add -IncludeRust after Windows stops blocking Rust build executables." />
+          <SetupStep number="1" title="Import your first file" text="Start with a PDF, DOCX, EPUB, or text document. EchoLearn turns it into readable chunks." />
+          <SetupStep number="2" title="Pick how AI should answer" text="Use local Ollama for privacy, or connect your own API key if you prefer a hosted model." />
+          <SetupStep number="3" title="Choose a reading voice" text="Windows reading voice works immediately. Piper is optional for better offline voice quality." />
+          <SetupStep number="4" title="Ask from your document" text="Questions stay grounded in the selected document and show source chunks when available." />
+          <SetupStep number="5" title="Create study material" text="Use flashcards and quizzes to review the imported content." />
         </div>
       </section>
 
       <section className="documentPanel setupPanel">
         <div className="panelHeader">
-          <h3>Downloads users need</h3>
-          <span>Use official sources</span>
+          <h3>Optional services</h3>
+          <span>Use only what fits your privacy choice</span>
         </div>
 
         <div className="downloadGrid">
@@ -1368,7 +1350,7 @@ function SetupPage() {
             <article className="downloadItem" key={item.name}>
               <strong>{item.name}</strong>
               <p>{item.purpose}</p>
-              <a href={item.pc} target="_blank" rel="noreferrer">PC download</a>
+              <a href={item.pc} target="_blank" rel="noreferrer">Open official page</a>
               <span>{item.mobile}</span>
             </article>
           ))}
@@ -1377,15 +1359,15 @@ function SetupPage() {
 
       <section className="documentPanel setupPanel">
         <div className="panelHeader">
-          <h3>Commands</h3>
-          <span>Run from repo root unless noted</span>
+          <h3>What you can do</h3>
+          <span>No developer setup required</span>
         </div>
 
         <div className="commandList">
-          {setupCommands.map((item) => (
+          {setupChoices.map((item) => (
             <article className="commandItem" key={item.title}>
               <strong>{item.title}</strong>
-              <pre>{item.command}</pre>
+              <p>{item.text}</p>
             </article>
           ))}
         </div>
@@ -1426,7 +1408,7 @@ function pageSubtitle(page: string) {
     Flashcards: "Generate review cards from document scope.",
     Quizzes: "Create practice questions from selected context.",
     Models: "Manage offline AI models and vector indexes.",
-    Setup: "Install tools, check system paths, and open the Obsidian vault.",
+    "Get Started": "Import a document, choose AI, and set reading preferences.",
     Settings: "Configure privacy, storage, and AI behavior.",
   };
 
@@ -1441,7 +1423,7 @@ function iconFor(item: string) {
     Flashcards: "FC",
     Quizzes: "QZ",
     Models: "MD",
-    Setup: "SU",
+    "Get Started": "GS",
     Settings: "ST",
   }[item];
 }

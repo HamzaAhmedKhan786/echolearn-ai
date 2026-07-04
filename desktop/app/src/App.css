@@ -996,7 +996,8 @@ button {
 
 .setupStep p,
 .downloadItem p,
-.downloadItem span {
+.downloadItem span,
+.commandItem p {
   margin: 7px 0 0;
   color: #a7b3c6;
   line-height: 1.5;
@@ -1017,17 +1018,6 @@ button {
 .downloadItem span {
   display: block;
   font-size: 13px;
-}
-
-.commandItem pre {
-  margin: 10px 0 0;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  color: #d1fae5;
-  background: rgba(2, 6, 23, 0.62);
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  border-radius: 8px;
-  padding: 12px;
 }
 
 .workPanel h2 {
