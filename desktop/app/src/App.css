@@ -19,7 +19,8 @@ body {
 
 button,
 select,
-textarea {
+textarea,
+input {
   font: inherit;
 }
 
@@ -751,6 +752,69 @@ button {
   border: 1px solid rgba(148, 163, 184, 0.12);
 }
 
+.runtimeGrid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.runtimeField {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.runtimeField span {
+  color: #cbd5e1;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.runtimeField input {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(2, 6, 23, 0.72);
+  color: #f8fafc;
+  outline: none;
+  padding: 10px 12px;
+}
+
+.runtimeField input:focus {
+  border-color: rgba(103, 232, 249, 0.54);
+}
+
+.runtimeActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.runtimeActions button {
+  min-height: 42px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  color: #062018;
+  background: linear-gradient(135deg, #67e8f9, #bef264);
+  cursor: pointer;
+  font-weight: 850;
+}
+
+.runtimeActions .secondary {
+  color: #e2e8f0;
+  background: rgba(148, 163, 184, 0.14);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.modelStatus {
+  margin: 14px 0 0;
+  color: #a7b3c6;
+  line-height: 1.5;
+}
+
 .workPanel h2 {
   margin: 16px 0 10px;
   font-size: 28px;
@@ -817,6 +881,10 @@ button {
   }
 
   .settingsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .runtimeGrid {
     grid-template-columns: 1fr;
   }
 }

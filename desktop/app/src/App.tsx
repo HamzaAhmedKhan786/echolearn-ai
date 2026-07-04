@@ -65,6 +65,29 @@ type StudyItem = {
   source_chunk_index: number;
 };
 
+type RuntimeConfig = {
+  llama_binary_path: string;
+  llm_model_path: string;
+  piper_binary_path: string;
+  piper_voice_path: string;
+  faiss_index_dir: string;
+};
+
+type IndexResult = {
+  document_id: string;
+  embedding_count: number;
+  dimension: number;
+  index_path: string;
+};
+
+const defaultRuntimeConfig: RuntimeConfig = {
+  llama_binary_path: "",
+  llm_model_path: "",
+  piper_binary_path: "",
+  piper_voice_path: "",
+  faiss_index_dir: "",
+};
+
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activePage, setActivePage] = useState("Library");
@@ -79,6 +102,8 @@ function App() {
   const [readerSearch, setReaderSearch] = useState("");
   const [fontScale, setFontScale] = useState(1);
   const [studyItems, setStudyItems] = useState<StudyItem[]>([]);
+  const [runtimeConfig, setRuntimeConfig] = useState<RuntimeConfig>(defaultRuntimeConfig);
+  const [modelStatus, setModelStatus] = useState("Configure local model paths to enable LLM synthesis and Piper TTS.");
   const [importStatus, setImportStatus] = useState("No document imported yet.");
   const [chatMessages, setChatMessages] = useState<string[]>([
     "Upload a document and I will answer only from its content.",
@@ -132,7 +157,7 @@ function App() {
       setChatMessages([
         `Document "${file.name}" is imported into ${result.chunk_count} local text chunks.`,
         result.persisted
-          ? "Saved in PostgreSQL. Embeddings and FAISS indexing are the next backend step."
+          ? "Saved in PostgreSQL. Vector embeddings were indexed for local retrieval."
           : "Preview import only. Run the Tauri app with DATABASE_URL to persist to PostgreSQL.",
       ]);
     } catch (error) {
@@ -208,7 +233,17 @@ function App() {
 
   useEffect(() => {
     void refreshDocuments();
+    void loadRuntimeConfig();
   }, []);
+
+  async function loadRuntimeConfig() {
+    try {
+      const config = await invoke<RuntimeConfig>("get_runtime_config");
+      setRuntimeConfig(config);
+    } catch {
+      setRuntimeConfig(defaultRuntimeConfig);
+    }
+  }
 
   function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -258,6 +293,52 @@ function App() {
         ...prev,
         `Grounded answer failed: ${error instanceof Error ? error.message : String(error)}`,
       ]);
+    }
+  }
+
+  async function handleSaveRuntimeConfig(config: RuntimeConfig) {
+    setRuntimeConfig(config);
+    try {
+      const saved = await invoke<RuntimeConfig>("save_runtime_config", { config });
+      setRuntimeConfig(saved);
+      setModelStatus("Runtime paths saved. Rebuild the vector index after changing embedding/index settings.");
+    } catch (error) {
+      setModelStatus(`Runtime paths are kept in this preview. Tauri save failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async function handleBuildIndex() {
+    if (!selectedDocument) {
+      setModelStatus("Open a saved PostgreSQL document before rebuilding the vector index.");
+      return;
+    }
+
+    try {
+      const result = await invoke<IndexResult>("build_vector_index", {
+        documentId: selectedDocument.id,
+      });
+      setModelStatus(
+        `Indexed ${result.embedding_count} embeddings (${result.dimension}d) at ${result.index_path}.`,
+      );
+    } catch (error) {
+      setModelStatus(`Index build failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async function handleSpeakCurrentChunk() {
+    const text = readerChunks[0]?.text ?? selectedDocument?.title ?? documentFile?.name ?? "";
+    if (!text.trim()) {
+      setImportStatus("Load a document before using TTS.");
+      return;
+    }
+
+    try {
+      const result = await invoke<{ audio_path: string }>("speak_text", {
+        text: excerptPreview(text, 1200),
+      });
+      setImportStatus(`TTS audio generated: ${result.audio_path}`);
+    } catch (error) {
+      setImportStatus(`TTS failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -366,6 +447,7 @@ function App() {
             onSearchChange={setReaderSearch}
             onFontScaleChange={setFontScale}
             onToggleBookmark={toggleBookmark}
+            onSpeak={handleSpeakCurrentChunk}
           />
         )}
 
@@ -385,7 +467,15 @@ function App() {
           <StudyToolsPage title="Quizzes" kind="quiz" items={studyItems} />
         )}
 
-        {activePage === "Models" && <ModelsPage />}
+        {activePage === "Models" && (
+          <ModelsPage
+            key={JSON.stringify(runtimeConfig)}
+            config={runtimeConfig}
+            status={modelStatus}
+            onSave={handleSaveRuntimeConfig}
+            onBuildIndex={handleBuildIndex}
+          />
+        )}
 
         {activePage === "Settings" && <SettingsPage />}
       </main>
@@ -529,6 +619,7 @@ function ReaderPage({
   onSearchChange,
   onFontScaleChange,
   onToggleBookmark,
+  onSpeak,
 }: {
   documentFile: DocumentFile | null;
   selectedDocument: StoredDocument | null;
@@ -544,6 +635,7 @@ function ReaderPage({
   onSearchChange: (value: string) => void;
   onFontScaleChange: (value: number) => void;
   onToggleBookmark: (chunkId: string) => void;
+  onSpeak: () => void;
 }) {
   const visibleChunks = chunks.filter((chunk) =>
     readerSearch.trim()
@@ -565,7 +657,7 @@ function ReaderPage({
         <div className="readerToolbar">
           <button onClick={() => onFontScaleChange(Math.max(0.85, fontScale - 0.1))}>A-</button>
           <button onClick={() => onFontScaleChange(Math.min(1.35, fontScale + 0.1))}>A+</button>
-          <button>Listen</button>
+          <button onClick={onSpeak}>Listen</button>
           <input
             aria-label="Search document"
             placeholder="Search chunks..."
@@ -859,13 +951,101 @@ function WorkPage({
   );
 }
 
-function ModelsPage() {
+function ModelsPage({
+  config,
+  status,
+  onSave,
+  onBuildIndex,
+}: {
+  config: RuntimeConfig;
+  status: string;
+  onSave: (config: RuntimeConfig) => void;
+  onBuildIndex: () => void;
+}) {
+  const [draft, setDraft] = useState(config);
+
+  function updateField(field: keyof RuntimeConfig, value: string) {
+    setDraft((previous) => ({ ...previous, [field]: value }));
+  }
+
   return (
-    <section className="cards modelCards">
-      <Feature icon="LLM" title="LLM Model" text="GGUF models will be downloaded and loaded through llama.cpp." />
-      <Feature icon="EMB" title="Embedding Model" text="bge-small-en-v1.5 will create local document vectors." />
-      <Feature icon="IDX" title="Vector Index" text="FAISS will store searchable document embeddings locally." />
-    </section>
+    <>
+      <section className="cards modelCards">
+        <Feature icon="LLM" title="LLM synthesis" text="Set a llama.cpp binary and GGUF model to generate local grounded answers." />
+        <Feature icon="EMB" title="Local embeddings" text="EchoLearn indexes deterministic 384d vectors immediately after PostgreSQL import." />
+        <Feature icon="TTS" title="Piper TTS" text="Set Piper and a voice model to generate local WAV narration from reader chunks." />
+      </section>
+
+      <section className="documentPanel runtimePanel">
+        <div className="panelHeader">
+          <h3>Runtime paths</h3>
+          <span>No Whisper configured</span>
+        </div>
+
+        <div className="runtimeGrid">
+          <RuntimeField
+            label="llama.cpp binary"
+            value={draft.llama_binary_path}
+            placeholder="C:\\Tools\\llama.cpp\\llama-cli.exe"
+            onChange={(value) => updateField("llama_binary_path", value)}
+          />
+          <RuntimeField
+            label="GGUF LLM model"
+            value={draft.llm_model_path}
+            placeholder="D:\\Models\\mistral-7b-instruct.Q4_K_M.gguf"
+            onChange={(value) => updateField("llm_model_path", value)}
+          />
+          <RuntimeField
+            label="Piper binary"
+            value={draft.piper_binary_path}
+            placeholder="C:\\Tools\\piper\\piper.exe"
+            onChange={(value) => updateField("piper_binary_path", value)}
+          />
+          <RuntimeField
+            label="Piper voice model"
+            value={draft.piper_voice_path}
+            placeholder="D:\\Models\\piper\\en_US-lessac-medium.onnx"
+            onChange={(value) => updateField("piper_voice_path", value)}
+          />
+          <RuntimeField
+            label="FAISS export directory"
+            value={draft.faiss_index_dir}
+            placeholder="C:\\Users\\DELL\\Documents\\EchoLearn\\faiss"
+            onChange={(value) => updateField("faiss_index_dir", value)}
+          />
+        </div>
+
+        <div className="runtimeActions">
+          <button onClick={() => onSave(draft)}>Save paths</button>
+          <button className="secondary" onClick={onBuildIndex}>Rebuild vector index</button>
+        </div>
+
+        <p className="modelStatus">{status}</p>
+      </section>
+    </>
+  );
+}
+
+function RuntimeField({
+  label,
+  value,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="runtimeField">
+      <span>{label}</span>
+      <input
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </label>
   );
 }
 

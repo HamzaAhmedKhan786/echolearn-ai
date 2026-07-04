@@ -266,6 +266,49 @@ Features:
 
 ---
 
+# Local Runtime Setup
+
+## Desktop preview
+
+```powershell
+cd C:\Users\DELL\Documents\Projects\Gen-AI\echolearn-ai\desktop\app
+npm run dev
+```
+
+Open `http://localhost:5173/`. This browser preview can import PDF, DOCX, EPUB, TXT, Markdown, CSV, JSON, HTML, and XML files, then chunk and query the current document in memory.
+
+## Full desktop app with PostgreSQL
+
+Start PostgreSQL first. With Docker Desktop running:
+
+```powershell
+cd C:\Users\DELL\Documents\Projects\Gen-AI\echolearn-ai
+docker compose up -d postgres
+.\scripts\dev-tauri.ps1
+```
+
+With your own PostgreSQL server:
+
+```powershell
+cd C:\Users\DELL\Documents\Projects\Gen-AI\echolearn-ai
+$env:DATABASE_URL="postgres://USER:PASSWORD@localhost:5432/echolearn"
+.\scripts\dev-tauri.ps1
+```
+
+## Local AI and TTS paths
+
+In the app, open `Models` and set:
+
+* `llama.cpp binary`: path to `llama-cli.exe`
+* `GGUF LLM model`: path to a local `.gguf` model
+* `Piper binary`: path to `piper.exe`
+* `Piper voice model`: path to a Piper `.onnx` voice
+* `FAISS export directory`: folder where EchoLearn writes JSONL vector index exports
+
+EchoLearn now creates deterministic 384-dimensional local embeddings for imported chunks, persists them in PostgreSQL, exports a FAISS-compatible JSONL file, retrieves by vector similarity plus keyword score, and uses llama.cpp for final grounded synthesis when those paths are configured. Whisper is intentionally not part of this setup.
+
+---
+
 # Future Features
 
 * AI tutor mode

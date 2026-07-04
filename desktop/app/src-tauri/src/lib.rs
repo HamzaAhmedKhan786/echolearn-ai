@@ -1,4 +1,8 @@
 use postgres::{Client, NoTls};
+use std::fs::{self, File};
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
 const POSTGRES_SCHEMA: &str = include_str!(
     "../../../../shared-core/infrastructure/database/migrations/001_initial_postgres.sql"
@@ -22,7 +26,11 @@ pub fn run() {
             list_documents,
             get_document_chunks,
             ask_document_question,
-            generate_study_items
+            generate_study_items,
+            get_runtime_config,
+            save_runtime_config,
+            build_vector_index,
+            speak_text
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -93,6 +101,28 @@ struct StudyItem {
     source_chunk_index: i32,
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Default, Clone)]
+struct RuntimeConfig {
+    llama_binary_path: String,
+    llm_model_path: String,
+    piper_binary_path: String,
+    piper_voice_path: String,
+    faiss_index_dir: String,
+}
+
+#[derive(serde::Serialize)]
+struct IndexResult {
+    document_id: String,
+    embedding_count: usize,
+    dimension: usize,
+    index_path: String,
+}
+
+#[derive(serde::Serialize)]
+struct SpeechResult {
+    audio_path: String,
+}
+
 #[tauri::command]
 fn import_document_text(
     name: String,
@@ -109,6 +139,12 @@ fn import_document_text(
     let document_id = create_id("doc", &name);
     let chunks = chunk_text(&document_id, &normalized, 1400, 220);
     let persisted = persist_document(&document_id, &name, &file_type, file_size, &chunks)?;
+    if persisted {
+        if let Some(mut client) = connect_database()? {
+            ensure_schema(&mut client)?;
+            let _ = persist_embeddings(&mut client, &document_id, &chunks);
+        }
+    }
 
     Ok(ImportedDocument {
         id: document_id,
@@ -181,10 +217,17 @@ fn ask_document_question(document_id: String, question: String) -> Result<TutorA
         return Err("Ask a more specific question so I can search the document.".to_string());
     }
 
+    let query_vector = embed_text(&question);
+    let embeddings = load_embedding_vectors(&mut client, &document_id).unwrap_or_default();
     let mut scored = chunks
         .into_iter()
         .map(|chunk| {
-            let score = retrieval_score(&question, &chunk.text);
+            let vector_score = embeddings
+                .iter()
+                .find(|embedding| embedding.chunk_id == chunk.id)
+                .map(|embedding| cosine_similarity(&query_vector, &embedding.vector))
+                .unwrap_or(0.0);
+            let score = (retrieval_score(&question, &chunk.text) * 0.35) + (vector_score * 0.65);
             (score, chunk)
         })
         .filter(|(score, _)| *score > 0.0)
@@ -214,11 +257,19 @@ fn ask_document_question(document_id: String, question: String) -> Result<TutorA
         });
     }
 
-    let answer = format!(
-        "I found {} relevant source chunk{}. Full local LLM synthesis is still pending, so this answer is grounded as retrieved evidence for now.",
-        citations.len(),
-        if citations.len() == 1 { "" } else { "s" }
-    );
+    let answer = synthesize_answer(&question, &citations).unwrap_or_else(|| {
+        let joined = citations
+            .iter()
+            .map(|citation| citation.excerpt.as_str())
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        format!(
+            "I found {} relevant source chunk{}. Based on the retrieved evidence: {}",
+            citations.len(),
+            if citations.len() == 1 { "" } else { "s" },
+            excerpt(&joined, 700)
+        )
+    });
 
     Ok(TutorAnswer { answer, citations })
 }
@@ -261,6 +312,164 @@ fn generate_study_items(document_id: String) -> Result<Vec<StudyItem>, String> {
         .collect())
 }
 
+#[tauri::command]
+fn get_runtime_config() -> Result<RuntimeConfig, String> {
+    let mut config = RuntimeConfig {
+        llama_binary_path: std::env::var("LLAMA_CPP_BIN").unwrap_or_default(),
+        llm_model_path: std::env::var("LLM_MODEL_PATH").unwrap_or_default(),
+        piper_binary_path: std::env::var("PIPER_BIN").unwrap_or_default(),
+        piper_voice_path: std::env::var("PIPER_VOICE_PATH").unwrap_or_default(),
+        faiss_index_dir: std::env::var("FAISS_INDEX_DIR")
+            .unwrap_or_else(|_| default_index_dir().to_string_lossy().to_string()),
+    };
+
+    if let Some(mut client) = connect_database()? {
+        ensure_schema(&mut client)?;
+        for row in client
+            .query("SELECT id, path FROM models", &[])
+            .map_err(|error| format!("Failed to load runtime config: {error}"))?
+        {
+            let id: String = row.get(0);
+            let path: String = row.get(1);
+            match id.as_str() {
+                "runtime-llama-bin" => config.llama_binary_path = path,
+                "runtime-llm-model" => config.llm_model_path = path,
+                "runtime-piper-bin" => config.piper_binary_path = path,
+                "runtime-piper-voice" => config.piper_voice_path = path,
+                "runtime-faiss-dir" => config.faiss_index_dir = path,
+                _ => {}
+            }
+        }
+    }
+
+    Ok(config)
+}
+
+#[tauri::command]
+fn save_runtime_config(config: RuntimeConfig) -> Result<RuntimeConfig, String> {
+    if let Some(mut client) = connect_database()? {
+        ensure_schema(&mut client)?;
+        upsert_model_path(
+            &mut client,
+            "runtime-llama-bin",
+            "llama.cpp binary",
+            "runtime_binary",
+            &config.llama_binary_path,
+        )?;
+        upsert_model_path(
+            &mut client,
+            "runtime-llm-model",
+            "Local GGUF LLM",
+            "llm",
+            &config.llm_model_path,
+        )?;
+        upsert_model_path(
+            &mut client,
+            "runtime-piper-bin",
+            "Piper binary",
+            "runtime_binary",
+            &config.piper_binary_path,
+        )?;
+        upsert_model_path(
+            &mut client,
+            "runtime-piper-voice",
+            "Piper voice model",
+            "tts",
+            &config.piper_voice_path,
+        )?;
+        upsert_model_path(
+            &mut client,
+            "runtime-faiss-dir",
+            "FAISS index directory",
+            "vector_index",
+            &config.faiss_index_dir,
+        )?;
+    }
+
+    Ok(config)
+}
+
+#[tauri::command]
+fn build_vector_index(document_id: String) -> Result<IndexResult, String> {
+    let Some(mut client) = connect_database()? else {
+        return Err(
+            "PostgreSQL is not connected. Set DATABASE_URL and run the Tauri app.".to_string(),
+        );
+    };
+
+    ensure_schema(&mut client)?;
+    let chunks = load_chunks(&mut client, &document_id)?
+        .into_iter()
+        .map(|chunk| DocumentChunk {
+            id: chunk.id,
+            chunk_index: chunk.chunk_index as usize,
+            text: chunk.text,
+            start_offset: chunk.start_offset as usize,
+            end_offset: chunk.end_offset as usize,
+            token_estimate: chunk.token_estimate as usize,
+        })
+        .collect::<Vec<_>>();
+
+    let result = persist_embeddings(&mut client, &document_id, &chunks)?;
+    Ok(result)
+}
+
+#[tauri::command]
+fn speak_text(text: String) -> Result<SpeechResult, String> {
+    let config = get_runtime_config()?;
+    if config.piper_binary_path.trim().is_empty() || config.piper_voice_path.trim().is_empty() {
+        return Err(
+            "Set Piper binary and voice model paths in Models before using TTS.".to_string(),
+        );
+    }
+
+    let binary = Path::new(&config.piper_binary_path);
+    let voice = Path::new(&config.piper_voice_path);
+    if !binary.exists() {
+        return Err("Piper binary path does not exist.".to_string());
+    }
+    if !voice.exists() {
+        return Err("Piper voice model path does not exist.".to_string());
+    }
+
+    let output_dir = default_audio_dir();
+    fs::create_dir_all(&output_dir)
+        .map_err(|error| format!("Failed to create TTS output directory: {error}"))?;
+    let audio_path = output_dir.join(format!("echolearn-{}.wav", timestamp_millis()));
+
+    let mut child = Command::new(binary)
+        .arg("--model")
+        .arg(voice)
+        .arg("--output_file")
+        .arg(&audio_path)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|error| format!("Failed to start Piper: {error}"))?;
+
+    if let Some(stdin) = child.stdin.as_mut() {
+        stdin
+            .write_all(text.as_bytes())
+            .map_err(|error| format!("Failed to send text to Piper: {error}"))?;
+    }
+
+    let output = child
+        .wait_with_output()
+        .map_err(|error| format!("Failed while running Piper: {error}"))?;
+
+    if !output.status.success() {
+        return Err(format!(
+            "Piper failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+
+    Ok(SpeechResult {
+        audio_path: audio_path.to_string_lossy().to_string(),
+    })
+}
+
 fn load_chunks(client: &mut Client, document_id: &str) -> Result<Vec<StoredChunk>, String> {
     let rows = client
         .query(
@@ -283,6 +492,103 @@ fn load_chunks(client: &mut Client, document_id: &str) -> Result<Vec<StoredChunk
             token_estimate: row.get(5),
         })
         .collect())
+}
+
+struct ChunkEmbedding {
+    chunk_id: String,
+    vector: Vec<f32>,
+}
+
+fn load_embedding_vectors(
+    client: &mut Client,
+    document_id: &str,
+) -> Result<Vec<ChunkEmbedding>, String> {
+    let rows = client
+        .query(
+            "SELECT e.chunk_id, e.vector_json
+             FROM embeddings e
+             INNER JOIN chunks c ON c.id = e.chunk_id
+             WHERE c.document_id = $1 AND e.model_id = 'echolearn-hash-384'",
+            &[&document_id],
+        )
+        .map_err(|error| format!("Failed to load embeddings: {error}"))?;
+
+    Ok(rows
+        .into_iter()
+        .filter_map(|row| {
+            let chunk_id: String = row.get(0);
+            let vector_json: Option<String> = row.get(1);
+            let vector =
+                vector_json.and_then(|json| serde_json::from_str::<Vec<f32>>(&json).ok())?;
+            Some(ChunkEmbedding { chunk_id, vector })
+        })
+        .collect())
+}
+
+fn persist_embeddings(
+    client: &mut Client,
+    document_id: &str,
+    chunks: &[DocumentChunk],
+) -> Result<IndexResult, String> {
+    let config = get_runtime_config().unwrap_or_default();
+    let index_dir = if config.faiss_index_dir.trim().is_empty() {
+        default_index_dir()
+    } else {
+        PathBuf::from(config.faiss_index_dir)
+    };
+    fs::create_dir_all(&index_dir)
+        .map_err(|error| format!("Failed to create vector index directory: {error}"))?;
+
+    let index_path = index_dir.join(format!("{document_id}.jsonl"));
+    let mut index_file = File::create(&index_path)
+        .map_err(|error| format!("Failed to create vector index export: {error}"))?;
+
+    client
+        .execute(
+            "DELETE FROM embeddings WHERE chunk_id IN (SELECT id FROM chunks WHERE document_id = $1)",
+            &[&document_id],
+        )
+        .map_err(|error| format!("Failed to refresh embeddings: {error}"))?;
+
+    for chunk in chunks {
+        let vector = embed_text(&chunk.text);
+        let vector_json = serde_json::to_string(&vector)
+            .map_err(|error| format!("Failed to encode embedding: {error}"))?;
+        let embedding_id = format!("emb-{}", chunk.id);
+        let vector_id = (stable_hash(&chunk.id) & 0x7fff_ffff_ffff_ffff) as i64;
+        let index_path_text = index_path.to_string_lossy().to_string();
+
+        client
+            .execute(
+                "INSERT INTO embeddings (id, chunk_id, model_id, vector_id, dimension, index_path, vector_json)
+                 VALUES ($1, $2, 'echolearn-hash-384', $3, $4, $5, $6)",
+                &[
+                    &embedding_id,
+                    &chunk.id,
+                    &vector_id,
+                    &(vector.len() as i32),
+                    &index_path_text,
+                    &vector_json,
+                ],
+            )
+            .map_err(|error| format!("Failed to save embedding for chunk {}: {error}", chunk.chunk_index))?;
+
+        let export_row = serde_json::json!({
+            "chunk_id": chunk.id,
+            "chunk_index": chunk.chunk_index,
+            "model_id": "echolearn-hash-384",
+            "vector": vector,
+        });
+        writeln!(index_file, "{export_row}")
+            .map_err(|error| format!("Failed to write vector index export: {error}"))?;
+    }
+
+    Ok(IndexResult {
+        document_id: document_id.to_string(),
+        embedding_count: chunks.len(),
+        dimension: EMBEDDING_DIMENSION,
+        index_path: index_path.to_string_lossy().to_string(),
+    })
 }
 
 fn persist_document(
@@ -359,6 +665,131 @@ fn ensure_schema(client: &mut Client) -> Result<(), String> {
     client
         .batch_execute(POSTGRES_SCHEMA)
         .map_err(|error| format!("Failed to apply PostgreSQL schema: {error}"))
+}
+
+fn upsert_model_path(
+    client: &mut Client,
+    id: &str,
+    name: &str,
+    kind: &str,
+    path: &str,
+) -> Result<(), String> {
+    client
+        .execute(
+            "INSERT INTO models (id, name, kind, path, status)
+             VALUES ($1, $2, $3, $4, 'configured')
+             ON CONFLICT (id) DO UPDATE SET
+               name = EXCLUDED.name,
+               kind = EXCLUDED.kind,
+               path = EXCLUDED.path,
+               status = EXCLUDED.status,
+               updated_at = CURRENT_TIMESTAMP",
+            &[&id, &name, &kind, &path],
+        )
+        .map(|_| ())
+        .map_err(|error| format!("Failed to save model path {id}: {error}"))
+}
+
+const EMBEDDING_DIMENSION: usize = 384;
+
+fn embed_text(text: &str) -> Vec<f32> {
+    let mut vector = vec![0.0; EMBEDDING_DIMENSION];
+    for term in search_terms(text) {
+        let index = stable_hash(&term) as usize % EMBEDDING_DIMENSION;
+        vector[index] += 1.0;
+    }
+    normalize_vector(vector)
+}
+
+fn stable_hash(value: &str) -> u64 {
+    let mut hash = 14_695_981_039_346_656_037u64;
+    for byte in value.bytes() {
+        hash ^= byte as u64;
+        hash = hash.wrapping_mul(1_099_511_628_211);
+    }
+    hash
+}
+
+fn normalize_vector(mut vector: Vec<f32>) -> Vec<f32> {
+    let magnitude = vector.iter().map(|value| value * value).sum::<f32>().sqrt();
+    if magnitude > 0.0 {
+        for value in &mut vector {
+            *value /= magnitude;
+        }
+    }
+    vector
+}
+
+fn cosine_similarity(left: &[f32], right: &[f32]) -> f32 {
+    left.iter()
+        .zip(right.iter())
+        .map(|(a, b)| a * b)
+        .sum::<f32>()
+        .max(0.0)
+}
+
+fn synthesize_answer(question: &str, citations: &[AnswerCitation]) -> Option<String> {
+    let config = get_runtime_config().ok()?;
+    if config.llama_binary_path.trim().is_empty() || config.llm_model_path.trim().is_empty() {
+        return None;
+    }
+
+    let binary = Path::new(&config.llama_binary_path);
+    let model = Path::new(&config.llm_model_path);
+    if !binary.exists() || !model.exists() {
+        return None;
+    }
+
+    let evidence = citations
+        .iter()
+        .map(|citation| format!("[chunk {}] {}", citation.chunk_index + 1, citation.excerpt))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let prompt = format!(
+        "You are EchoLearn AI. Answer only from the evidence. If the evidence is insufficient, say so.\n\nQuestion: {question}\n\nEvidence:\n{evidence}\n\nAnswer:"
+    );
+
+    let output = Command::new(binary)
+        .arg("-m")
+        .arg(model)
+        .arg("-p")
+        .arg(prompt)
+        .arg("-n")
+        .arg("220")
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if text.is_empty() {
+        None
+    } else {
+        Some(excerpt(&text, 1200))
+    }
+}
+
+fn default_index_dir() -> PathBuf {
+    std::env::current_dir()
+        .unwrap_or_else(|_| PathBuf::from("."))
+        .join("data")
+        .join("faiss")
+}
+
+fn default_audio_dir() -> PathBuf {
+    std::env::current_dir()
+        .unwrap_or_else(|_| PathBuf::from("."))
+        .join("data")
+        .join("tts")
+}
+
+fn timestamp_millis() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or_default()
 }
 
 fn search_terms(question: &str) -> Vec<String> {

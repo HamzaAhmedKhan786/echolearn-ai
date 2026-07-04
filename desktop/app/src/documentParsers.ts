@@ -1,10 +1,3 @@
-import mammoth from "mammoth/mammoth.browser";
-import * as pdfjs from "pdfjs-dist";
-import PdfWorker from "pdfjs-dist/build/pdf.worker.mjs?url";
-import JSZip from "jszip";
-
-pdfjs.GlobalWorkerOptions.workerSrc = PdfWorker;
-
 const textExtensions = new Set(["txt", "md", "markdown", "csv", "json", "html", "xml"]);
 
 export async function extractDocumentText(file: File) {
@@ -46,6 +39,10 @@ function getExtension(name: string) {
 }
 
 async function extractPdfText(file: File) {
+  const pdfjs = await import("pdfjs-dist");
+  const worker = await import("pdfjs-dist/build/pdf.worker.mjs?url");
+  pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
+
   const document = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
   const pages: string[] = [];
 
@@ -65,11 +62,13 @@ async function extractPdfText(file: File) {
 }
 
 async function extractDocxText(file: File) {
+  const mammoth = await import("mammoth/mammoth.browser");
   const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
   return result.value.trim();
 }
 
 async function extractEpubText(file: File) {
+  const JSZip = (await import("jszip")).default;
   const zip = await JSZip.loadAsync(await file.arrayBuffer());
   const container = await zip.file("META-INF/container.xml")?.async("text");
 

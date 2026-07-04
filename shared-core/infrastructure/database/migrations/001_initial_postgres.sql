@@ -29,9 +29,12 @@ CREATE TABLE IF NOT EXISTS embeddings (
   vector_id BIGINT NOT NULL,
   dimension INTEGER NOT NULL,
   index_path TEXT NOT NULL,
+  vector_json TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(model_id, vector_id)
 );
+
+ALTER TABLE embeddings ADD COLUMN IF NOT EXISTS vector_json TEXT;
 
 CREATE TABLE IF NOT EXISTS study_items (
   id TEXT PRIMARY KEY,
