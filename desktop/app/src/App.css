@@ -815,6 +815,88 @@ button {
   line-height: 1.5;
 }
 
+.setupSteps,
+.downloadGrid,
+.commandList {
+  margin-top: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.setupSteps {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.setupStep,
+.downloadItem,
+.commandItem {
+  min-width: 0;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(15, 23, 42, 0.76);
+}
+
+.setupStep {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.setupStep > span {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: #062018;
+  background: #bef264;
+  font-weight: 900;
+}
+
+.setupStep strong,
+.downloadItem strong,
+.commandItem strong {
+  color: #67e8f9;
+}
+
+.setupStep p,
+.downloadItem p,
+.downloadItem span {
+  margin: 7px 0 0;
+  color: #a7b3c6;
+  line-height: 1.5;
+}
+
+.downloadGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.downloadItem a {
+  display: inline-flex;
+  margin-top: 12px;
+  color: #bef264;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.downloadItem span {
+  display: block;
+  font-size: 13px;
+}
+
+.commandItem pre {
+  margin: 10px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #d1fae5;
+  background: rgba(2, 6, 23, 0.62);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 8px;
+  padding: 12px;
+}
+
 .workPanel h2 {
   margin: 16px 0 10px;
   font-size: 28px;
@@ -884,7 +966,9 @@ button {
     grid-template-columns: 1fr;
   }
 
-  .runtimeGrid {
+  .runtimeGrid,
+  .setupSteps,
+  .downloadGrid {
     grid-template-columns: 1fr;
   }
 }

@@ -268,6 +268,12 @@ Features:
 
 # Local Runtime Setup
 
+Detailed setup, downloads, and testing notes are available in:
+
+* `docs/SETUP_AND_DOWNLOADS.md`
+* `docs/TESTING.md`
+* `obsidian-vault/README.md`
+
 ## Desktop preview
 
 ```powershell

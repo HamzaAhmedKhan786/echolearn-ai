@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { extractDocumentText, isImportableDocument } from "./documentParsers";
 import "./App.css";
 
-const navItems = ["Library", "Reader", "AI Tutor", "Flashcards", "Quizzes", "Models", "Settings"];
+const navItems = ["Library", "Reader", "AI Tutor", "Flashcards", "Quizzes", "Models", "Setup", "Settings"];
 
 const scopes = [
   "Current paragraph",
@@ -476,6 +476,8 @@ function App() {
             onBuildIndex={handleBuildIndex}
           />
         )}
+
+        {activePage === "Setup" && <SetupPage />}
 
         {activePage === "Settings" && <SettingsPage />}
       </main>
@@ -1067,6 +1069,147 @@ function SettingsPage() {
   );
 }
 
+const setupDownloads = [
+  {
+    name: "Obsidian",
+    purpose: "Open the repo as a documentation vault for notes, errors, and reusable project fixes.",
+    pc: "https://obsidian.md/download",
+    mobile: "Use Google Play or App Store from the same Obsidian download page.",
+  },
+  {
+    name: "Docker Desktop",
+    purpose: "Runs the local PostgreSQL service with docker compose.",
+    pc: "https://docs.docker.com/desktop/setup/install/windows-install/",
+    mobile: "Not required on phone.",
+  },
+  {
+    name: "PostgreSQL",
+    purpose: "Alternative to Docker if you want a normal local database install.",
+    pc: "https://www.postgresql.org/download/windows/",
+    mobile: "Not required on phone.",
+  },
+  {
+    name: "llama.cpp",
+    purpose: "Runs local GGUF LLM models for grounded answer synthesis.",
+    pc: "https://github.com/ggml-org/llama.cpp/releases",
+    mobile: "Advanced later step; desktop is recommended first.",
+  },
+  {
+    name: "Piper",
+    purpose: "Generates local TTS audio from reader chunks.",
+    pc: "https://github.com/rhasspy/piper/releases",
+    mobile: "Mobile currently uses Android/iOS native TTS.",
+  },
+  {
+    name: "Android Studio",
+    purpose: "Gives emulator/device tools for checking the Flutter mobile app.",
+    pc: "https://developer.android.com/studio",
+    mobile: "Not installed on phone.",
+  },
+  {
+    name: "Flutter SDK",
+    purpose: "Builds and tests the mobile app.",
+    pc: "https://docs.flutter.dev/get-started/install/windows",
+    mobile: "Not installed on phone.",
+  },
+  {
+    name: "Rust",
+    purpose: "Builds the Tauri desktop backend.",
+    pc: "https://www.rust-lang.org/tools/install",
+    mobile: "Not installed on phone.",
+  },
+];
+
+const setupCommands = [
+  {
+    title: "Check what is installed",
+    command: ".\\scripts\\check-system.ps1",
+  },
+  {
+    title: "Run browser preview",
+    command: "cd desktop\\app\nnpm run dev",
+  },
+  {
+    title: "Run full desktop app",
+    command: "docker compose up -d postgres\n.\\scripts\\dev-tauri.ps1",
+  },
+  {
+    title: "Run all available tests",
+    command: ".\\scripts\\test-all.ps1",
+  },
+  {
+    title: "Run mobile tests only",
+    command: "cd mobile\\flutter_app\nflutter test",
+  },
+];
+
+function SetupPage() {
+  return (
+    <>
+      <section className="documentPanel setupPanel">
+        <div className="panelHeader">
+          <h3>First-run setup</h3>
+          <span>PC, mobile, models, and documentation</span>
+        </div>
+
+        <div className="setupSteps">
+          <SetupStep number="1" title="Open this repo in Obsidian" text="Use the repository folder as a vault. The obsidian-vault folder contains starter notes for setup, errors, testing, and reusable fixes." />
+          <SetupStep number="2" title="Check your system" text="Run scripts/check-system.ps1 to see whether Git, Node, Docker, PostgreSQL, Rust, Flutter, Android tooling, llama.cpp, and Piper are available." />
+          <SetupStep number="3" title="Install only what is missing" text="Use the official links below. Desktop users need PostgreSQL or Docker; mobile developers need Flutter and Android Studio." />
+          <SetupStep number="4" title="Configure model paths" text="Open Models, paste local paths for llama-cli.exe, a .gguf model, piper.exe, and a Piper .onnx voice, then save paths." />
+          <SetupStep number="5" title="Run tests before changes" text="Use scripts/test-all.ps1 for the normal suite. Add -IncludeRust after Windows stops blocking Rust build executables." />
+        </div>
+      </section>
+
+      <section className="documentPanel setupPanel">
+        <div className="panelHeader">
+          <h3>Downloads users need</h3>
+          <span>Use official sources</span>
+        </div>
+
+        <div className="downloadGrid">
+          {setupDownloads.map((item) => (
+            <article className="downloadItem" key={item.name}>
+              <strong>{item.name}</strong>
+              <p>{item.purpose}</p>
+              <a href={item.pc} target="_blank" rel="noreferrer">PC download</a>
+              <span>{item.mobile}</span>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="documentPanel setupPanel">
+        <div className="panelHeader">
+          <h3>Commands</h3>
+          <span>Run from repo root unless noted</span>
+        </div>
+
+        <div className="commandList">
+          {setupCommands.map((item) => (
+            <article className="commandItem" key={item.title}>
+              <strong>{item.title}</strong>
+              <pre>{item.command}</pre>
+            </article>
+          ))}
+        </div>
+      </section>
+    </>
+  );
+}
+
+function SetupStep({ number, title, text }: { number: string; title: string; text: string }) {
+  return (
+    <article className="setupStep">
+      <span>{number}</span>
+      <div>
+        <strong>{title}</strong>
+        <p>{text}</p>
+      </div>
+    </article>
+  );
+}
+
 function Feature({ icon, title, text }: { icon: string; title: string; text: string }) {
   return (
     <div className="featureCard">
@@ -1087,6 +1230,7 @@ function pageSubtitle(page: string) {
     Flashcards: "Generate review cards from document scope.",
     Quizzes: "Create practice questions from selected context.",
     Models: "Manage offline AI models and vector indexes.",
+    Setup: "Install tools, check system paths, and open the Obsidian vault.",
     Settings: "Configure privacy, storage, and AI behavior.",
   };
 
@@ -1101,6 +1245,7 @@ function iconFor(item: string) {
     Flashcards: "FC",
     Quizzes: "QZ",
     Models: "MD",
+    Setup: "SU",
     Settings: "ST",
   }[item];
 }
