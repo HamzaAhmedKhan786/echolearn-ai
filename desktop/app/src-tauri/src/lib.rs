@@ -104,6 +104,10 @@ struct StudyItem {
 
 #[derive(serde::Serialize, serde::Deserialize, Default, Clone)]
 struct RuntimeConfig {
+    cloud_provider: String,
+    cloud_api_base_url: String,
+    cloud_model: String,
+    cloud_api_key_env: String,
     ollama_endpoint: String,
     ollama_model: String,
     llama_binary_path: String,
@@ -318,6 +322,10 @@ fn generate_study_items(document_id: String) -> Result<Vec<StudyItem>, String> {
 #[tauri::command]
 fn get_runtime_config() -> Result<RuntimeConfig, String> {
     let mut config = RuntimeConfig {
+        cloud_provider: std::env::var("CLOUD_LLM_PROVIDER").unwrap_or_else(|_| "none".to_string()),
+        cloud_api_base_url: std::env::var("CLOUD_LLM_BASE_URL").unwrap_or_default(),
+        cloud_model: std::env::var("CLOUD_LLM_MODEL").unwrap_or_default(),
+        cloud_api_key_env: std::env::var("CLOUD_LLM_API_KEY_ENV").unwrap_or_default(),
         ollama_endpoint: std::env::var("OLLAMA_ENDPOINT")
             .unwrap_or_else(|_| "http://127.0.0.1:11434".to_string()),
         ollama_model: std::env::var("OLLAMA_MODEL").unwrap_or_default(),
@@ -338,6 +346,10 @@ fn get_runtime_config() -> Result<RuntimeConfig, String> {
             let id: String = row.get(0);
             let path: String = row.get(1);
             match id.as_str() {
+                "runtime-cloud-provider" => config.cloud_provider = path,
+                "runtime-cloud-base-url" => config.cloud_api_base_url = path,
+                "runtime-cloud-model" => config.cloud_model = path,
+                "runtime-cloud-api-key-env" => config.cloud_api_key_env = path,
                 "runtime-ollama-endpoint" => config.ollama_endpoint = path,
                 "runtime-ollama-model" => config.ollama_model = path,
                 "runtime-llama-bin" => config.llama_binary_path = path,
@@ -357,6 +369,34 @@ fn get_runtime_config() -> Result<RuntimeConfig, String> {
 fn save_runtime_config(config: RuntimeConfig) -> Result<RuntimeConfig, String> {
     if let Some(mut client) = connect_database()? {
         ensure_schema(&mut client)?;
+        upsert_model_path(
+            &mut client,
+            "runtime-cloud-provider",
+            "Cloud LLM provider",
+            "cloud_llm",
+            &config.cloud_provider,
+        )?;
+        upsert_model_path(
+            &mut client,
+            "runtime-cloud-base-url",
+            "Cloud LLM base URL",
+            "cloud_llm",
+            &config.cloud_api_base_url,
+        )?;
+        upsert_model_path(
+            &mut client,
+            "runtime-cloud-model",
+            "Cloud LLM model",
+            "cloud_llm",
+            &config.cloud_model,
+        )?;
+        upsert_model_path(
+            &mut client,
+            "runtime-cloud-api-key-env",
+            "Cloud LLM API key env var",
+            "cloud_llm",
+            &config.cloud_api_key_env,
+        )?;
         upsert_model_path(
             &mut client,
             "runtime-ollama-endpoint",

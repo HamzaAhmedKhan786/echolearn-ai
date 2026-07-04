@@ -267,6 +267,8 @@ class SettingsPage extends StatelessWidget {
       children: [
         SettingsTile(title: 'Telemetry', value: 'Disabled'),
         SettingsTile(title: 'AI mode', value: 'Offline'),
+        SettingsTile(title: 'Cloud keys', value: 'User-owned only'),
+        SettingsTile(title: 'Mobile LLM', value: 'Small model manager planned'),
         SettingsTile(title: 'Storage', value: 'Local encrypted'),
         SettingsTile(title: 'Theme', value: 'Dark'),
       ],

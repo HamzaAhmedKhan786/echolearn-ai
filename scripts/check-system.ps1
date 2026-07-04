@@ -3,6 +3,9 @@ param(
   [string]$LlmModel = $env:LLM_MODEL_PATH,
   [string]$OllamaEndpoint = $(if ($env:OLLAMA_ENDPOINT) { $env:OLLAMA_ENDPOINT } else { "http://127.0.0.1:11434" }),
   [string]$OllamaModel = $env:OLLAMA_MODEL,
+  [string]$CloudProvider = $(if ($env:CLOUD_LLM_PROVIDER) { $env:CLOUD_LLM_PROVIDER } else { "none" }),
+  [string]$CloudModel = $env:CLOUD_LLM_MODEL,
+  [string]$CloudApiKeyEnv = $env:CLOUD_LLM_API_KEY_ENV,
   [string]$PiperBinary = $env:PIPER_BIN,
   [string]$PiperVoice = $env:PIPER_VOICE_PATH
 )
@@ -63,6 +66,19 @@ Test-PathValue "Ollama machine install" "C:\Program Files\Ollama\ollama.exe"
 
 Write-Host ""
 Write-Host "Configured local AI paths"
+Write-Host "[INFO] Cloud provider: $CloudProvider"
+if ([string]::IsNullOrWhiteSpace($CloudModel)) {
+  Write-Host "[MISSING] Cloud model: no model configured"
+} else {
+  Write-Host "[OK] Cloud model: $CloudModel"
+}
+if ([string]::IsNullOrWhiteSpace($CloudApiKeyEnv)) {
+  Write-Host "[MISSING] Cloud API key env var: no env var name configured"
+} elseif ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($CloudApiKeyEnv))) {
+  Write-Host "[MISSING] Cloud API key value: env var '$CloudApiKeyEnv' is not set"
+} else {
+  Write-Host "[OK] Cloud API key value: env var '$CloudApiKeyEnv' is set"
+}
 Write-Host "[INFO] Ollama endpoint: $OllamaEndpoint"
 if ([string]::IsNullOrWhiteSpace($OllamaModel)) {
   Write-Host "[MISSING] Ollama model: no model configured"

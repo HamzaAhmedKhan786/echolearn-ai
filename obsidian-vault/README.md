@@ -13,7 +13,11 @@ Use it for:
 
 Start with:
 
+- [[EchoLearn Home]]
 - [[Setup Checklist]]
 - [[Error Log]]
 - [[Testing Notes]]
 - [[Reusable Fixes]]
+- [[API Keys]]
+- [[Mobile LLM Plan]]
+- [[Obsidian Usage]]

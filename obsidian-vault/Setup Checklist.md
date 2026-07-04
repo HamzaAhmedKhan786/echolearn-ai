@@ -1,5 +1,7 @@
 # Setup Checklist
 
+Related: [[EchoLearn Home]], [[Testing Notes]], [[Error Log]], [[API Keys]], [[Mobile LLM Plan]]
+
 ## PC
 
 - [ ] Run `.\scripts\check-system.ps1`.

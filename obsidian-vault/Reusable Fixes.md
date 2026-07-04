@@ -1,5 +1,7 @@
 # Reusable Fixes
 
+Related: [[EchoLearn Home]], [[Error Log]], [[Setup Checklist]], [[Testing Notes]]
+
 ## Docker Desktop pipe missing
 
 Error:

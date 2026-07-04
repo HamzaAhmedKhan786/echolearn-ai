@@ -1,5 +1,7 @@
 # Testing Notes
 
+Related: [[EchoLearn Home]], [[Setup Checklist]], [[Error Log]], [[Reusable Fixes]]
+
 Main command:
 
 ```powershell

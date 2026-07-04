@@ -1,5 +1,7 @@
 # Error Log
 
+Related: [[EchoLearn Home]], [[Setup Checklist]], [[Reusable Fixes]], [[Testing Notes]]
+
 Use this format when something breaks:
 
 ```text

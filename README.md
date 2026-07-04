@@ -272,6 +272,8 @@ Detailed setup, downloads, and testing notes are available in:
 
 * `docs/SETUP_AND_DOWNLOADS.md`
 * `docs/TESTING.md`
+* `docs/API_KEYS.md`
+* `docs/OBSIDIAN.md`
 * `obsidian-vault/README.md`
 
 ## Desktop preview

@@ -66,6 +66,10 @@ type StudyItem = {
 };
 
 type RuntimeConfig = {
+  cloud_provider: string;
+  cloud_api_base_url: string;
+  cloud_model: string;
+  cloud_api_key_env: string;
   ollama_endpoint: string;
   ollama_model: string;
   llama_binary_path: string;
@@ -83,6 +87,10 @@ type IndexResult = {
 };
 
 const defaultRuntimeConfig: RuntimeConfig = {
+  cloud_provider: "none",
+  cloud_api_base_url: "",
+  cloud_model: "",
+  cloud_api_key_env: "",
   ollama_endpoint: "http://127.0.0.1:11434",
   ollama_model: "",
   llama_binary_path: "",
@@ -978,6 +986,7 @@ function ModelsPage({
     <>
       <section className="cards modelCards">
         <Feature icon="OLL" title="Ollama first" text="Use your local Ollama server for grounded answer synthesis before adding llama.cpp." />
+        <Feature icon="KEY" title="Bring your own key" text="Use personal OpenAI, Claude, Gemini, Groq, or OpenRouter keys from environment variables." />
         <Feature icon="EMB" title="Local embeddings" text="EchoLearn indexes deterministic 384d vectors immediately after PostgreSQL import." />
         <Feature icon="TTS" title="Piper TTS" text="Set Piper and a voice model to generate local WAV narration from reader chunks." />
       </section>
@@ -1000,6 +1009,30 @@ function ModelsPage({
             value={draft.ollama_model}
             placeholder="llama3.2:1b"
             onChange={(value) => updateField("ollama_model", value)}
+          />
+          <RuntimeField
+            label="Cloud provider"
+            value={draft.cloud_provider}
+            placeholder="none / openai / anthropic / gemini / groq / openrouter"
+            onChange={(value) => updateField("cloud_provider", value)}
+          />
+          <RuntimeField
+            label="Cloud API base URL"
+            value={draft.cloud_api_base_url}
+            placeholder="https://api.openai.com/v1"
+            onChange={(value) => updateField("cloud_api_base_url", value)}
+          />
+          <RuntimeField
+            label="Cloud model"
+            value={draft.cloud_model}
+            placeholder="gpt-4.1-mini / claude-haiku / gemini-flash / llama-3.1-8b"
+            onChange={(value) => updateField("cloud_model", value)}
+          />
+          <RuntimeField
+            label="API key env var"
+            value={draft.cloud_api_key_env}
+            placeholder="OPENAI_API_KEY"
+            onChange={(value) => updateField("cloud_api_key_env", value)}
           />
           <RuntimeField
             label="llama.cpp binary"
@@ -1039,6 +1072,10 @@ function ModelsPage({
         </div>
 
         <p className="modelStatus">{status}</p>
+        <p className="modelStatus">
+          API keys should stay in environment variables or OS secure storage. Do not paste real keys into Git,
+          screenshots, or shared docs.
+        </p>
       </section>
     </>
   );
