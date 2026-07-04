@@ -56,5 +56,6 @@ Add tests in this order:
 5. Open the saved document.
 6. Ask a grounded question.
 7. Rebuild vector index from Models.
-8. Configure Piper and test Listen.
-9. Configure llama.cpp and test grounded synthesis.
+8. Configure Ollama model name and test grounded synthesis.
+9. Configure Piper and test Listen.
+10. Optionally configure llama.cpp and test GGUF fallback.

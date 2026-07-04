@@ -305,8 +305,10 @@ $env:DATABASE_URL="postgres://USER:PASSWORD@localhost:5432/echolearn"
 
 In the app, open `Models` and set:
 
-* `llama.cpp binary`: path to `llama-cli.exe`
-* `GGUF LLM model`: path to a local `.gguf` model
+* `Ollama endpoint`: normally `http://127.0.0.1:11434`
+* `Ollama model`: for example `llama3.2:1b`
+* `llama.cpp binary`: optional path to `llama-cli.exe`
+* `GGUF LLM model`: optional path to a local `.gguf` model
 * `Piper binary`: path to `piper.exe`
 * `Piper voice model`: path to a Piper `.onnx` voice
 * `FAISS export directory`: folder where EchoLearn writes JSONL vector index exports

@@ -1,6 +1,8 @@
 param(
   [string]$LlamaBinary = $env:LLAMA_CPP_BIN,
   [string]$LlmModel = $env:LLM_MODEL_PATH,
+  [string]$OllamaEndpoint = $(if ($env:OLLAMA_ENDPOINT) { $env:OLLAMA_ENDPOINT } else { "http://127.0.0.1:11434" }),
+  [string]$OllamaModel = $env:OLLAMA_MODEL,
   [string]$PiperBinary = $env:PIPER_BIN,
   [string]$PiperVoice = $env:PIPER_VOICE_PATH
 )
@@ -13,9 +15,9 @@ function Test-CommandAvailable {
     [string]$Command
   )
 
-  $found = Get-Command $Command -ErrorAction SilentlyContinue
-  if ($found) {
-    Write-Host "[OK] ${Name}: $($found.Source)"
+  $found = & "$env:SystemRoot\System32\where.exe" $Command 2>$null | Select-Object -First 1
+  if (-not [string]::IsNullOrWhiteSpace($found)) {
+    Write-Host "[OK] ${Name}: $found"
   } else {
     Write-Host "[MISSING] ${Name}: command '$Command' was not found on PATH"
   }
@@ -52,9 +54,21 @@ Test-CommandAvailable "Rust cargo" "cargo"
 Test-CommandAvailable "Flutter" "flutter"
 Test-CommandAvailable "Android Debug Bridge" "adb"
 Test-CommandAvailable "Java" "java"
+Test-CommandAvailable "Ollama" "ollama"
+
+Write-Host ""
+Write-Host "Common Ollama install paths"
+Test-PathValue "Ollama user install" (Join-Path $env:LOCALAPPDATA "Programs\Ollama\ollama.exe")
+Test-PathValue "Ollama machine install" "C:\Program Files\Ollama\ollama.exe"
 
 Write-Host ""
 Write-Host "Configured local AI paths"
+Write-Host "[INFO] Ollama endpoint: $OllamaEndpoint"
+if ([string]::IsNullOrWhiteSpace($OllamaModel)) {
+  Write-Host "[MISSING] Ollama model: no model configured"
+} else {
+  Write-Host "[OK] Ollama model: $OllamaModel"
+}
 Test-PathValue "llama.cpp binary" $LlamaBinary
 Test-PathValue "GGUF model" $LlmModel
 Test-PathValue "Piper binary" $PiperBinary
@@ -66,3 +80,5 @@ Write-Host "  Browser preview: cd desktop/app; npm run dev"
 Write-Host "  Full desktop:    docker compose up -d postgres; ./scripts/dev-tauri.ps1"
 Write-Host "  Test suite:      ./scripts/test-all.ps1"
 Write-Host "  Mobile devices:  cd mobile/flutter_app; flutter devices"
+Write-Host "  Ollama models:   ollama list"
+Write-Host "  Pull small LLM:   ollama pull llama3.2:1b"

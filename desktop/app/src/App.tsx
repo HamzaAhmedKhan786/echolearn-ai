@@ -66,6 +66,8 @@ type StudyItem = {
 };
 
 type RuntimeConfig = {
+  ollama_endpoint: string;
+  ollama_model: string;
   llama_binary_path: string;
   llm_model_path: string;
   piper_binary_path: string;
@@ -81,6 +83,8 @@ type IndexResult = {
 };
 
 const defaultRuntimeConfig: RuntimeConfig = {
+  ollama_endpoint: "http://127.0.0.1:11434",
+  ollama_model: "",
   llama_binary_path: "",
   llm_model_path: "",
   piper_binary_path: "",
@@ -973,7 +977,7 @@ function ModelsPage({
   return (
     <>
       <section className="cards modelCards">
-        <Feature icon="LLM" title="LLM synthesis" text="Set a llama.cpp binary and GGUF model to generate local grounded answers." />
+        <Feature icon="OLL" title="Ollama first" text="Use your local Ollama server for grounded answer synthesis before adding llama.cpp." />
         <Feature icon="EMB" title="Local embeddings" text="EchoLearn indexes deterministic 384d vectors immediately after PostgreSQL import." />
         <Feature icon="TTS" title="Piper TTS" text="Set Piper and a voice model to generate local WAV narration from reader chunks." />
       </section>
@@ -985,6 +989,18 @@ function ModelsPage({
         </div>
 
         <div className="runtimeGrid">
+          <RuntimeField
+            label="Ollama endpoint"
+            value={draft.ollama_endpoint}
+            placeholder="http://127.0.0.1:11434"
+            onChange={(value) => updateField("ollama_endpoint", value)}
+          />
+          <RuntimeField
+            label="Ollama model"
+            value={draft.ollama_model}
+            placeholder="llama3.2:1b"
+            onChange={(value) => updateField("ollama_model", value)}
+          />
           <RuntimeField
             label="llama.cpp binary"
             value={draft.llama_binary_path}
@@ -1089,8 +1105,14 @@ const setupDownloads = [
     mobile: "Not required on phone.",
   },
   {
+    name: "Ollama",
+    purpose: "Runs local LLM models with the easiest desktop setup.",
+    pc: "https://ollama.com/download",
+    mobile: "Run on PC first; mobile can connect later through a backend bridge.",
+  },
+  {
     name: "llama.cpp",
-    purpose: "Runs local GGUF LLM models for grounded answer synthesis.",
+    purpose: "Optional advanced GGUF runtime if you do not want Ollama.",
     pc: "https://github.com/ggml-org/llama.cpp/releases",
     mobile: "Advanced later step; desktop is recommended first.",
   },
@@ -1154,9 +1176,9 @@ function SetupPage() {
 
         <div className="setupSteps">
           <SetupStep number="1" title="Open this repo in Obsidian" text="Use the repository folder as a vault. The obsidian-vault folder contains starter notes for setup, errors, testing, and reusable fixes." />
-          <SetupStep number="2" title="Check your system" text="Run scripts/check-system.ps1 to see whether Git, Node, Docker, PostgreSQL, Rust, Flutter, Android tooling, llama.cpp, and Piper are available." />
+          <SetupStep number="2" title="Check your system" text="Run scripts/check-system.ps1 to see whether Git, Node, Docker, PostgreSQL, Rust, Flutter, Android tooling, Ollama, llama.cpp, and Piper are available." />
           <SetupStep number="3" title="Install only what is missing" text="Use the official links below. Desktop users need PostgreSQL or Docker; mobile developers need Flutter and Android Studio." />
-          <SetupStep number="4" title="Configure model paths" text="Open Models, paste local paths for llama-cli.exe, a .gguf model, piper.exe, and a Piper .onnx voice, then save paths." />
+          <SetupStep number="4" title="Configure model runtime" text="Open Models, set Ollama endpoint and model name first. Add llama.cpp and Piper paths when you want GGUF fallback and desktop TTS." />
           <SetupStep number="5" title="Run tests before changes" text="Use scripts/test-all.ps1 for the normal suite. Add -IncludeRust after Windows stops blocking Rust build executables." />
         </div>
       </section>

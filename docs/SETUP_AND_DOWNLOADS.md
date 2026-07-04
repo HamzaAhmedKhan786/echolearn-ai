@@ -11,6 +11,8 @@ Repo: C:\Users\DELL\Documents\Projects\Gen-AI\echolearn-ai
 PostgreSQL: postgres://USER:PASSWORD@localhost:5432/echolearn
 llama.cpp binary: C:\Tools\llama.cpp\llama-cli.exe
 GGUF model: D:\Models\mistral-7b-instruct.Q4_K_M.gguf
+Ollama endpoint: http://127.0.0.1:11434
+Ollama model: llama3.2:1b
 Piper binary: C:\Tools\piper\piper.exe
 Piper voice: D:\Models\piper\en_US-lessac-medium.onnx
 FAISS export directory: C:\Users\DELL\Documents\EchoLearn\faiss
@@ -58,6 +60,7 @@ Use official sources:
 | Flutter | Mobile app development | https://docs.flutter.dev/get-started/install/windows |
 | Android Studio | Android emulator/device tools | https://developer.android.com/studio |
 | llama.cpp | Local GGUF LLM runtime | https://github.com/ggml-org/llama.cpp/releases |
+| Ollama | Easiest local LLM runtime | https://ollama.com/download |
 | Piper | Local desktop text-to-speech | https://github.com/rhasspy/piper/releases |
 
 ## Mobile Downloads
@@ -79,10 +82,25 @@ For mobile developers:
 
 EchoLearn does not commit model binaries to Git because they are large.
 
-You need:
+Recommended first path:
+
+- Install Ollama.
+- Pull a small local model:
+
+```powershell
+ollama pull llama3.2:1b
+ollama list
+```
+
+- In EchoLearn Models, set endpoint `http://127.0.0.1:11434` and model `llama3.2:1b`.
+
+Optional llama.cpp path:
 
 - `llama-cli.exe` from llama.cpp releases.
 - A `.gguf` chat/instruct model.
+
+Desktop TTS path:
+
 - `piper.exe` from Piper releases.
 - A Piper `.onnx` voice model.
 

@@ -8,5 +8,6 @@ void main() {
     expect(find.text('EchoLearn AI'), findsOneWidget);
     expect(find.text('Library'), findsWidgets);
     expect(find.text('Import document'), findsOneWidget);
+    expect(find.text('Import'), findsOneWidget);
   });
 }

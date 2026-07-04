@@ -1,6 +1,7 @@
 use postgres::{Client, NoTls};
 use std::fs::{self, File};
-use std::io::Write;
+use std::io::{Read, Write};
+use std::net::TcpStream;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -103,6 +104,8 @@ struct StudyItem {
 
 #[derive(serde::Serialize, serde::Deserialize, Default, Clone)]
 struct RuntimeConfig {
+    ollama_endpoint: String,
+    ollama_model: String,
     llama_binary_path: String,
     llm_model_path: String,
     piper_binary_path: String,
@@ -315,6 +318,9 @@ fn generate_study_items(document_id: String) -> Result<Vec<StudyItem>, String> {
 #[tauri::command]
 fn get_runtime_config() -> Result<RuntimeConfig, String> {
     let mut config = RuntimeConfig {
+        ollama_endpoint: std::env::var("OLLAMA_ENDPOINT")
+            .unwrap_or_else(|_| "http://127.0.0.1:11434".to_string()),
+        ollama_model: std::env::var("OLLAMA_MODEL").unwrap_or_default(),
         llama_binary_path: std::env::var("LLAMA_CPP_BIN").unwrap_or_default(),
         llm_model_path: std::env::var("LLM_MODEL_PATH").unwrap_or_default(),
         piper_binary_path: std::env::var("PIPER_BIN").unwrap_or_default(),
@@ -332,6 +338,8 @@ fn get_runtime_config() -> Result<RuntimeConfig, String> {
             let id: String = row.get(0);
             let path: String = row.get(1);
             match id.as_str() {
+                "runtime-ollama-endpoint" => config.ollama_endpoint = path,
+                "runtime-ollama-model" => config.ollama_model = path,
                 "runtime-llama-bin" => config.llama_binary_path = path,
                 "runtime-llm-model" => config.llm_model_path = path,
                 "runtime-piper-bin" => config.piper_binary_path = path,
@@ -349,6 +357,20 @@ fn get_runtime_config() -> Result<RuntimeConfig, String> {
 fn save_runtime_config(config: RuntimeConfig) -> Result<RuntimeConfig, String> {
     if let Some(mut client) = connect_database()? {
         ensure_schema(&mut client)?;
+        upsert_model_path(
+            &mut client,
+            "runtime-ollama-endpoint",
+            "Ollama endpoint",
+            "llm_server",
+            &config.ollama_endpoint,
+        )?;
+        upsert_model_path(
+            &mut client,
+            "runtime-ollama-model",
+            "Ollama model",
+            "llm",
+            &config.ollama_model,
+        )?;
         upsert_model_path(
             &mut client,
             "runtime-llama-bin",
@@ -730,6 +752,19 @@ fn cosine_similarity(left: &[f32], right: &[f32]) -> f32 {
 
 fn synthesize_answer(question: &str, citations: &[AnswerCitation]) -> Option<String> {
     let config = get_runtime_config().ok()?;
+    let evidence = citations
+        .iter()
+        .map(|citation| format!("[chunk {}] {}", citation.chunk_index + 1, citation.excerpt))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let prompt = format!(
+        "You are EchoLearn AI. Answer only from the evidence. If the evidence is insufficient, say so.\n\nQuestion: {question}\n\nEvidence:\n{evidence}\n\nAnswer:"
+    );
+
+    if let Some(answer) = synthesize_with_ollama(&config, &prompt) {
+        return Some(answer);
+    }
+
     if config.llama_binary_path.trim().is_empty() || config.llm_model_path.trim().is_empty() {
         return None;
     }
@@ -739,15 +774,6 @@ fn synthesize_answer(question: &str, citations: &[AnswerCitation]) -> Option<Str
     if !binary.exists() || !model.exists() {
         return None;
     }
-
-    let evidence = citations
-        .iter()
-        .map(|citation| format!("[chunk {}] {}", citation.chunk_index + 1, citation.excerpt))
-        .collect::<Vec<_>>()
-        .join("\n");
-    let prompt = format!(
-        "You are EchoLearn AI. Answer only from the evidence. If the evidence is insufficient, say so.\n\nQuestion: {question}\n\nEvidence:\n{evidence}\n\nAnswer:"
-    );
 
     let output = Command::new(binary)
         .arg("-m")
@@ -768,6 +794,56 @@ fn synthesize_answer(question: &str, citations: &[AnswerCitation]) -> Option<Str
         None
     } else {
         Some(excerpt(&text, 1200))
+    }
+}
+
+fn synthesize_with_ollama(config: &RuntimeConfig, prompt: &str) -> Option<String> {
+    if config.ollama_model.trim().is_empty() {
+        return None;
+    }
+
+    let trimmed_endpoint = config.ollama_endpoint.trim().trim_end_matches('/');
+    let endpoint = trimmed_endpoint
+        .strip_prefix("http://")
+        .unwrap_or(trimmed_endpoint);
+    let (host_port, base_path) = endpoint
+        .split_once('/')
+        .map(|(host, path)| (host, format!("/{path}")))
+        .unwrap_or((endpoint, String::new()));
+    let (host, port) = host_port
+        .split_once(':')
+        .map(|(host, port)| (host, port.parse::<u16>().ok().unwrap_or(11434)))
+        .unwrap_or((host_port, 11434));
+
+    let body = serde_json::json!({
+        "model": config.ollama_model,
+        "prompt": prompt,
+        "stream": false,
+        "options": {
+            "num_predict": 220,
+            "temperature": 0.2
+        }
+    })
+    .to_string();
+
+    let path = format!("{base_path}/api/generate");
+    let request = format!(
+        "POST {path} HTTP/1.1\r\nHost: {host}:{port}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    );
+
+    let mut stream = TcpStream::connect((host, port)).ok()?;
+    stream.write_all(request.as_bytes()).ok()?;
+    let mut response = String::new();
+    stream.read_to_string(&mut response).ok()?;
+    let json_start = response.find("\r\n\r\n").map(|index| index + 4)?;
+    let response_body = &response[json_start..];
+    let value = serde_json::from_str::<serde_json::Value>(response_body).ok()?;
+    let text = value.get("response")?.as_str()?.trim();
+    if text.is_empty() {
+        None
+    } else {
+        Some(excerpt(text, 1200))
     }
 }
 

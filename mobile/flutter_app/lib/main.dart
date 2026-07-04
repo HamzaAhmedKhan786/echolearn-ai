@@ -116,26 +116,48 @@ class _AppShellState extends State<AppShell> {
   }
 }
 
-class LibraryPage extends StatelessWidget {
+class LibraryPage extends StatefulWidget {
   const LibraryPage({super.key});
 
   @override
+  State<LibraryPage> createState() => _LibraryPageState();
+}
+
+class _LibraryPageState extends State<LibraryPage> {
+  String status = 'No mobile document imported yet.';
+
+  Future<void> importDocument() async {
+    try {
+      final document = await mobileBridge.pickAndImportDocument();
+      setState(() {
+        status = document == null
+            ? 'Import cancelled.'
+            : 'Imported ${document.title} with ${document.chunkCount} chunks.';
+      });
+    } catch (error) {
+      setState(() => status = 'Import bridge failed: $error');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const PageFrame(
+    return PageFrame(
       title: 'Library',
       subtitle: 'Import private PDF, DOCX, EPUB, and text documents.',
       children: [
-        ActionPanel(
+        BridgeActionPanel(
           icon: Icons.upload_file,
           title: 'Import document',
-          body: 'Desktop extraction is ready; mobile native picker and parser bridges are next.',
+          body: status,
+          buttonLabel: 'Import',
+          onPressed: importDocument,
         ),
-        ActionPanel(
+        const ActionPanel(
           icon: Icons.integration_instructions,
           title: 'Native bridge contract',
           body: 'MethodChannel echolearn.ai/native is defined for import, TTS, and grounded Q&A.',
         ),
-        MetricGrid(
+        const MetricGrid(
           items: [
             MetricItem(label: 'Documents', value: '0'),
             MetricItem(label: 'Indexed chunks', value: '0'),
@@ -155,33 +177,57 @@ class ReaderPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const PageFrame(
+    return PageFrame(
       title: 'Reader',
       subtitle: 'Read, listen, highlight, and navigate imported content.',
       children: [
-        ActionPanel(
+        BridgeActionPanel(
           icon: Icons.menu_book,
-          title: 'No document loaded',
-          body: 'The reader surface is ready for parsed text, bookmarks, sentence highlighting, and TTS playback.',
+          title: 'Native TTS smoke test',
+          body: 'Uses Android TextToSpeech or iOS AVSpeech through the MethodChannel.',
+          buttonLabel: 'Speak',
+          onPressed: () => mobileBridge.speak('EchoLearn mobile text to speech is connected.'),
         ),
       ],
     );
   }
 }
 
-class TutorPage extends StatelessWidget {
+class TutorPage extends StatefulWidget {
   const TutorPage({super.key});
 
   @override
+  State<TutorPage> createState() => _TutorPageState();
+}
+
+class _TutorPageState extends State<TutorPage> {
+  String answer = 'Ask a mobile bridge smoke-test question.';
+
+  Future<void> askQuestion() async {
+    try {
+      final response = await mobileBridge.askQuestion(
+        documentId: 'mobile-preview',
+        question: 'What is EchoLearn?',
+        scope: 'Whole document',
+      );
+      setState(() => answer = response.answer);
+    } catch (error) {
+      setState(() => answer = 'Ask bridge failed: $error');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const PageFrame(
+    return PageFrame(
       title: 'AI Tutor',
       subtitle: 'Ask scoped questions grounded in imported documents.',
       children: [
-        ActionPanel(
+        BridgeActionPanel(
           icon: Icons.psychology_alt_outlined,
           title: 'Grounded answers',
-          body: 'RAG, citations, and hallucination checks will connect after local indexing.',
+          body: answer,
+          buttonLabel: 'Ask',
+          onPressed: askQuestion,
         ),
       ],
     );
@@ -294,6 +340,60 @@ class ActionPanel extends StatelessWidget {
                   Text(body),
                 ],
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class BridgeActionPanel extends StatelessWidget {
+  const BridgeActionPanel({
+    required this.icon,
+    required this.title,
+    required this.body,
+    required this.buttonLabel,
+    required this.onPressed,
+    super.key,
+  });
+
+  final IconData icon;
+  final String title;
+  final String body;
+  final String buttonLabel;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: const Color(0xFF111827),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(icon, size: 32, color: const Color(0xFF67E8F9)),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 6),
+                      Text(body),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            FilledButton(
+              onPressed: onPressed,
+              child: Text(buttonLabel),
             ),
           ],
         ),
