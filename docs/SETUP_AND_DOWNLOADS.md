@@ -16,7 +16,7 @@ Ollama model: llama3.2:1b
 Cloud provider: openai
 Cloud model: gpt-4.1-mini
 Cloud API key env var: OPENAI_API_KEY
-Piper binary: C:\Tools\piper\piper.exe
+Piper binary: C:\Users\DELL\Downloads\setups\piper_windows_amd64\piper\piper.exe
 Piper voice: D:\Models\piper\en_US-lessac-medium.onnx
 FAISS export directory: C:\Users\DELL\Documents\EchoLearn\faiss
 ```
@@ -146,6 +146,14 @@ Desktop TTS path:
 
 - `piper.exe` from Piper releases.
 - A Piper `.onnx` voice model.
+
+Your current Piper binary path is:
+
+```text
+C:\Users\DELL\Downloads\setups\piper_windows_amd64\piper\piper.exe
+```
+
+You still need a Piper voice `.onnx` file and its matching `.onnx.json` config.
 
 After downloading, open EchoLearn `Models` and paste each local path.
 

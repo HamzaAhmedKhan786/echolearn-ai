@@ -65,6 +65,10 @@ Test-PathValue "Ollama user install" (Join-Path $env:LOCALAPPDATA "Programs\Olla
 Test-PathValue "Ollama machine install" "C:\Program Files\Ollama\ollama.exe"
 
 Write-Host ""
+Write-Host "Common Piper install paths"
+Test-PathValue "Piper downloaded setup" "C:\Users\DELL\Downloads\setups\piper_windows_amd64\piper\piper.exe"
+
+Write-Host ""
 Write-Host "Configured local AI paths"
 Write-Host "[INFO] Cloud provider: $CloudProvider"
 if ([string]::IsNullOrWhiteSpace($CloudModel)) {

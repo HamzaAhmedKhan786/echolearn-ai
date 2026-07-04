@@ -1,8 +1,14 @@
+import 'package:device_preview/device_preview.dart';
 import 'package:flutter/material.dart';
 import 'services/echolearn_bridge.dart';
 
 void main() {
-  runApp(const EchoLearnMobileApp());
+  runApp(
+    DevicePreview(
+      enabled: true,
+      builder: (context) => const EchoLearnMobileApp(),
+    ),
+  );
 }
 
 class EchoLearnMobileApp extends StatelessWidget {
@@ -13,6 +19,8 @@ class EchoLearnMobileApp extends StatelessWidget {
     return MaterialApp(
       title: 'EchoLearn AI',
       debugShowCheckedModeBanner: false,
+      locale: DevicePreview.locale(context),
+      builder: DevicePreview.appBuilder,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(

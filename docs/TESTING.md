@@ -46,6 +46,7 @@ Add tests in this order:
 5. Ask a question from the AI Tutor panel.
 6. Open Models and confirm runtime path fields render.
 7. Open Setup and confirm download links and commands render.
+8. For mobile Windows preview, run `flutter run -d windows` and use Device Preview to switch device frames.
 
 ## Full Desktop Smoke Test
 

@@ -5,6 +5,11 @@ Use this note as the vault map.
 ## Start Here
 
 - [[Setup Checklist]]
+- [[Desktop App]]
+- [[Mobile App]]
+- [[Runtime Setup]]
+- [[Document Pipeline]]
+- [[Device Preview]]
 - [[Testing Notes]]
 - [[Error Log]]
 - [[Reusable Fixes]]

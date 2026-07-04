@@ -15,6 +15,11 @@ Start with:
 
 - [[EchoLearn Home]]
 - [[Setup Checklist]]
+- [[Desktop App]]
+- [[Mobile App]]
+- [[Runtime Setup]]
+- [[Document Pipeline]]
+- [[Device Preview]]
 - [[Error Log]]
 - [[Testing Notes]]
 - [[Reusable Fixes]]
