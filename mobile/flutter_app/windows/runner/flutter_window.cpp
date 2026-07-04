@@ -1,6 +1,10 @@
 #include "flutter_window.h"
 
+#include <flutter/standard_method_codec.h>
+#include <windows.h>
+
 #include <optional>
+#include <string>
 
 #include "flutter/generated_plugin_registrant.h"
 
@@ -25,6 +29,51 @@ bool FlutterWindow::OnCreate() {
     return false;
   }
   RegisterPlugins(flutter_controller_->engine());
+  native_channel_ = std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+      flutter_controller_->engine()->messenger(), "echolearn.ai/native",
+      &flutter::StandardMethodCodec::GetInstance());
+  native_channel_->SetMethodCallHandler(
+      [](const flutter::MethodCall<flutter::EncodableValue>& call,
+         std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
+        const auto& method = call.method_name();
+
+        if (method == "pickAndImportDocument") {
+          flutter::EncodableMap document;
+          document[flutter::EncodableValue("id")] =
+              flutter::EncodableValue("windows-preview");
+          document[flutter::EncodableValue("title")] =
+              flutter::EncodableValue("Windows bridge preview");
+          document[flutter::EncodableValue("chunkCount")] =
+              flutter::EncodableValue(0);
+          result->Success(flutter::EncodableValue(document));
+          return;
+        }
+
+        if (method == "speak") {
+          MessageBeep(MB_ICONINFORMATION);
+          result->Success();
+          return;
+        }
+
+        if (method == "stopSpeaking") {
+          result->Success();
+          return;
+        }
+
+        if (method == "askQuestion") {
+          flutter::EncodableMap answer;
+          answer[flutter::EncodableValue("answer")] =
+              flutter::EncodableValue(
+                  "Windows bridge is connected. Full mobile document storage "
+                  "and grounded Q&A are still pending.");
+          answer[flutter::EncodableValue("citations")] =
+              flutter::EncodableValue(flutter::EncodableList());
+          result->Success(flutter::EncodableValue(answer));
+          return;
+        }
+
+        result->NotImplemented();
+      });
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 
   flutter_controller_->engine()->SetNextFrameCallback([&]() {
@@ -40,6 +89,7 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  native_channel_ = nullptr;
   if (flutter_controller_) {
     flutter_controller_ = nullptr;
   }

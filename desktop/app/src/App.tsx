@@ -116,6 +116,7 @@ function App() {
   const [studyItems, setStudyItems] = useState<StudyItem[]>([]);
   const [runtimeConfig, setRuntimeConfig] = useState<RuntimeConfig>(defaultRuntimeConfig);
   const [modelStatus, setModelStatus] = useState("Configure local model paths to enable LLM synthesis and Piper TTS.");
+  const [showStartupGuide, setShowStartupGuide] = useState(true);
   const [importStatus, setImportStatus] = useState("No document imported yet.");
   const [chatMessages, setChatMessages] = useState<string[]>([
     "Upload a document and I will answer only from its content.",
@@ -356,6 +357,20 @@ function App() {
 
   return (
     <div className={sidebarOpen ? "appShell" : "appShell collapsed"}>
+      {showStartupGuide && (
+        <StartupGuide
+          onClose={() => setShowStartupGuide(false)}
+          onOpenSetup={() => {
+            setActivePage("Setup");
+            setShowStartupGuide(false);
+          }}
+          onOpenModels={() => {
+            setActivePage("Models");
+            setShowStartupGuide(false);
+          }}
+        />
+      )}
+
       <input
         ref={fileInputRef}
         type="file"
@@ -421,9 +436,14 @@ function App() {
             <p>{pageSubtitle(activePage)}</p>
           </div>
 
-          <div className="status">
-            <span />
-            Offline ready
+          <div className="topbarActions">
+            <button className="helpButton" onClick={() => setShowStartupGuide(true)}>
+              Guide
+            </button>
+            <div className="status">
+              <span />
+              Offline ready
+            </div>
           </div>
         </header>
 
@@ -540,6 +560,49 @@ function App() {
         </button>
       </aside>
     </div>
+  );
+}
+
+function StartupGuide({
+  onClose,
+  onOpenSetup,
+  onOpenModels,
+}: {
+  onClose: () => void;
+  onOpenSetup: () => void;
+  onOpenModels: () => void;
+}) {
+  return (
+    <div className="guideOverlay" role="dialog" aria-modal="true" aria-labelledby="guide-title">
+      <section className="guideDialog">
+        <div className="panelHeader">
+          <h3 id="guide-title">EchoLearn first-run guide</h3>
+          <button className="iconButton" onClick={onClose} title="Close guide">X</button>
+        </div>
+
+        <div className="guideGrid">
+          <GuideItem title="Database" text="Use Docker PostgreSQL or your own PostgreSQL. Browser preview can run without saving to PostgreSQL." />
+          <GuideItem title="LLM" text="Use Ollama first, or configure a personal cloud API key. llama.cpp is optional now." />
+          <GuideItem title="TTS" text="Piper needs piper.exe plus a voice .onnx and matching .onnx.json file." />
+          <GuideItem title="Mobile" text="Device Preview is for UI testing. Real mobile import/storage and secure key storage are still pending." />
+        </div>
+
+        <div className="runtimeActions">
+          <button onClick={onOpenSetup}>Open Setup</button>
+          <button className="secondary" onClick={onOpenModels}>Open Models</button>
+          <button className="secondary" onClick={onClose}>Continue</button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function GuideItem({ title, text }: { title: string; text: string }) {
+  return (
+    <article className="guideItem">
+      <strong>{title}</strong>
+      <p>{text}</p>
+    </article>
   );
 }
 

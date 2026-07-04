@@ -59,6 +59,51 @@ class _AppShellState extends State<AppShell> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => showStartupGuide());
+  }
+
+  Future<void> showStartupGuide() {
+    return showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('EchoLearn first-run guide'),
+        content: const SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Mobile preview status'),
+              SizedBox(height: 8),
+              Text('• Device Preview is enabled for phone/tablet frames.'),
+              Text('• Native bridge smoke tests are connected on Windows, Android, and iOS.'),
+              Text('• Real mobile document import/storage is still pending.'),
+              SizedBox(height: 14),
+              Text('AI choices'),
+              SizedBox(height: 8),
+              Text('• Use a personal API key to avoid downloading phone models.'),
+              Text('• Or connect later to desktop Ollama on your local network.'),
+              Text('• On-phone LLM downloads need a future mobile model manager and small quantized models.'),
+              SizedBox(height: 14),
+              Text('Downloads'),
+              SizedBox(height: 8),
+              Text('• Android Studio/platform tools for emulator or adb.'),
+              Text('• Piper voice is only needed for desktop Piper TTS.'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -70,6 +115,11 @@ class _AppShellState extends State<AppShell> {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'First-run guide',
+            icon: const Icon(Icons.help_outline),
+            onPressed: showStartupGuide,
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: Chip(

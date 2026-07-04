@@ -16,3 +16,5 @@ cd C:\Users\DELL\Documents\Projects\Gen-AI\echolearn-ai\mobile\flutter_app
 ```
 
 The Windows Flutter app should show Device Preview controls, including device/frame selection.
+
+If clicking Import/Speak/Ask shows `MissingPluginException`, the Windows runner is missing the `echolearn.ai/native` MethodChannel handler. The current runner includes a Windows handler for preview smoke tests.

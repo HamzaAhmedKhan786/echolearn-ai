@@ -47,6 +47,7 @@ Add tests in this order:
 6. Open Models and confirm runtime path fields render.
 7. Open Setup and confirm download links and commands render.
 8. For mobile Windows preview, run `flutter run -d windows` and use Device Preview to switch device frames.
+9. Click Import, Speak, and Ask to confirm the Windows MethodChannel bridge responds without `MissingPluginException`.
 
 ## Full Desktop Smoke Test
 

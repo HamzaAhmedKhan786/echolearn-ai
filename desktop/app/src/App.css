@@ -257,6 +257,69 @@ button {
   box-shadow: 0 0 14px #22c55e;
 }
 
+.topbarActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.helpButton {
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: #e2e8f0;
+  background: rgba(148, 163, 184, 0.14);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  cursor: pointer;
+  font-weight: 850;
+}
+
+.guideOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(2, 6, 23, 0.72);
+}
+
+.guideDialog {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 36px);
+  overflow-y: auto;
+  padding: 22px;
+  border-radius: 8px;
+  color: #f8fafc;
+  border: 1px solid rgba(103, 232, 249, 0.24);
+  background: #0f172a;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+}
+
+.guideGrid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.guideItem {
+  padding: 14px;
+  border-radius: 8px;
+  background: rgba(2, 6, 23, 0.48);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.guideItem strong {
+  color: #67e8f9;
+}
+
+.guideItem p {
+  margin: 7px 0 0;
+  color: #a7b3c6;
+  line-height: 1.5;
+}
+
 .hero {
   margin-top: 20px;
   min-height: 280px;
@@ -957,6 +1020,7 @@ button {
   }
 
   .topbar,
+  .topbarActions,
   .panelHeader {
     align-items: flex-start;
     flex-direction: column;
@@ -968,7 +1032,8 @@ button {
 
   .runtimeGrid,
   .setupSteps,
-  .downloadGrid {
+  .downloadGrid,
+  .guideGrid {
     grid-template-columns: 1fr;
   }
 }
