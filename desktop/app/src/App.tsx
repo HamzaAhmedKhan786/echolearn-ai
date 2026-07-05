@@ -131,9 +131,13 @@ function App() {
   const [ttsValidationBusy, setTtsValidationBusy] = useState(false);
   const [showStartupGuide, setShowStartupGuide] = useState(true);
   const [importStatus, setImportStatus] = useState("No document imported yet.");
-  const [chatMessages, setChatMessages] = useState<string[]>([
-    "Upload a document and I will answer only from its content.",
-  ]);
+  const [learnerAge, setLearnerAge] = useState(() => localStorage.getItem("echolearnLearnerAge") ?? "");
+  const [chatMessages, setChatMessages] = useState<string[]>(() => {
+    const saved = localStorage.getItem("echolearnChatMessages");
+    return saved
+      ? JSON.parse(saved)
+      : ["Upload a document and I will stay focused on its topic while helping you understand it."];
+  });
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -177,14 +181,12 @@ function App() {
       setBookmarkedChunkIds([]);
       setStudyItems(generatePreviewStudyItems(result.chunks ?? []));
       setImportStatus(
-        `Imported ${result.chunk_count} chunks from ${result.character_count.toLocaleString()} characters${result.persisted ? " and saved to PostgreSQL" : ""}.`,
+        `Imported ${result.chunk_count} chunks from ${result.character_count.toLocaleString()} characters.`,
       );
       await refreshDocuments(result);
       setChatMessages([
         `Document "${file.name}" is imported into ${result.chunk_count} local text chunks.`,
-        result.persisted
-          ? "Saved in PostgreSQL. Vector embeddings were indexed for local retrieval."
-          : "Preview import only. Run the Tauri app with DATABASE_URL to persist to PostgreSQL.",
+        "Ask questions that stay on the document topic. I can add simple explanation when it helps understanding.",
       ]);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -236,7 +238,7 @@ function App() {
       chunk_count: document.chunk_count,
       persisted: true,
     });
-    setImportStatus(`Loaded ${document.chunk_count} saved chunks from PostgreSQL.`);
+    setImportStatus(`Loaded ${document.chunk_count} saved chunks from your local library.`);
     setActivePage("Reader");
 
     try {
@@ -270,6 +272,14 @@ function App() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("echolearnLearnerAge", learnerAge);
+  }, [learnerAge]);
+
+  useEffect(() => {
+    localStorage.setItem("echolearnChatMessages", JSON.stringify(chatMessages));
+  }, [chatMessages]);
 
   async function refreshTtsStatus() {
     setTtsValidationBusy(true);
@@ -316,16 +326,18 @@ function App() {
     setQuestion("");
     setChatMessages((prev) => [...prev, `You asked from scope "${scope}": ${askedQuestion}`]);
 
-    if (!selectedDocument) {
-      setChatMessages((prev) => [
-        ...prev,
-        "Select a saved PostgreSQL document to use grounded Q&A.",
-      ]);
+    if (readerChunks.length === 0) {
+      setChatMessages((prev) => [...prev, "I need readable text from the uploaded document before I can answer."]);
       return;
     }
 
     try {
-      const answer = await askStoredDocument(selectedDocument.id, askedQuestion, readerChunks);
+      const answer = await askStoredDocument(
+        selectedDocument?.id ?? importResult?.id ?? "current-document",
+        askedQuestion,
+        readerChunks,
+        learnerAge,
+      );
       setChatMessages((prev) => [
         ...prev,
         answer.answer,
@@ -410,6 +422,34 @@ function App() {
     } catch (error) {
       setImportStatus(`TTS failed: ${error instanceof Error ? error.message : String(error)}`);
     }
+  }
+
+  function handleExportChatPdf() {
+    const title = selectedDocument?.title ?? documentFile?.name ?? "EchoLearn chat";
+    const printable = window.open("", "_blank", "width=900,height=700");
+    if (!printable) return;
+
+    printable.document.write(`
+      <html>
+        <head>
+          <title>${escapeHtml(title)} - chat</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 32px; color: #111827; }
+            h1 { font-size: 24px; margin-bottom: 4px; }
+            .meta { color: #6b7280; margin-bottom: 24px; }
+            .message { border-bottom: 1px solid #e5e7eb; padding: 12px 0; line-height: 1.5; white-space: pre-wrap; }
+          </style>
+        </head>
+        <body>
+          <h1>${escapeHtml(title)}</h1>
+          <div class="meta">EchoLearn AI chat export</div>
+          ${chatMessages.map((message) => `<div class="message">${escapeHtml(message)}</div>`).join("")}
+        </body>
+      </html>
+    `);
+    printable.document.close();
+    printable.focus();
+    printable.print();
   }
 
   return (
@@ -572,7 +612,9 @@ function App() {
 
         {activePage === "Get Started" && <SetupPage />}
 
-        {activePage === "Settings" && <SettingsPage />}
+        {activePage === "Settings" && (
+          <SettingsPage learnerAge={learnerAge} onLearnerAgeChange={setLearnerAge} />
+        )}
       </main>
 
       <aside className="aiTutor">
@@ -618,6 +660,9 @@ function App() {
 
         <button className="askBtn" onClick={() => void handleAsk()}>
           Ask EchoLearn
+        </button>
+        <button className="secondaryAskBtn" onClick={handleExportChatPdf}>
+          Save chat as PDF
         </button>
       </aside>
     </div>
@@ -718,7 +763,7 @@ function LibraryList({
     <section className="documentPanel libraryList">
       <div className="panelHeader">
         <h3>Saved library</h3>
-        <span>{documents.length ? `${documents.length} document${documents.length === 1 ? "" : "s"}` : "PostgreSQL-backed"}</span>
+        <span>{documents.length ? `${documents.length} document${documents.length === 1 ? "" : "s"}` : "Local library"}</span>
       </div>
 
       {documents.length ? (
@@ -735,7 +780,7 @@ function LibraryList({
         </div>
       ) : (
         <p className="emptyState">
-          No saved documents yet. Import a text document after setting DATABASE_URL to save it in PostgreSQL.
+          No saved documents yet. Import a document to start your local study library.
         </p>
       )}
     </section>
@@ -957,25 +1002,24 @@ async function askStoredDocument(
   documentId: string,
   question: string,
   fallbackChunks: StoredChunk[],
+  learnerAge: string,
 ): Promise<TutorAnswer> {
   try {
     return await invoke<TutorAnswer>("ask_document_question", {
       documentId,
       question,
+      learnerAge: normalizedLearnerAge(learnerAge),
     });
   } catch (error) {
     if (!isMissingTauriRuntime(error) && fallbackChunks.length === 0) {
       throw error;
     }
 
-    const terms = question
-      .toLowerCase()
-      .split(/[^a-z0-9]+/)
-      .filter((term) => term.length > 2);
+    const terms = usefulTerms(question);
     const citations = fallbackChunks
       .map((chunk) => ({
         chunk,
-        score: terms.filter((term) => chunk.text.toLowerCase().includes(term)).length,
+        score: terms.filter((term) => usefulTerms(chunk.text).includes(term)).length,
       }))
       .filter((item) => item.score > 0)
       .sort((left, right) => right.score - left.score)
@@ -986,13 +1030,54 @@ async function askStoredDocument(
         excerpt: excerptPreview(chunk.text, 360),
       }));
 
+    const solidMatch = citations.length > 0 && terms.length > 0;
+    if (!solidMatch) {
+      return {
+        answer:
+          "This question does not have a strong match with the uploaded document. I can help when the question stays on the same subject or topic as the document.",
+        citations: [],
+      };
+    }
+
+    const ageNote = learnerAge.trim()
+      ? ` I will explain it in a way that fits a ${learnerAge.trim()} year old learner.`
+      : "";
+
     return {
-      answer: citations.length
-        ? `I found ${citations.length} relevant source chunk${citations.length === 1 ? "" : "s"} in the current preview import.`
-        : "I could not find matching support in the selected document chunks.",
+      answer: `This question matches the document topic.${ageNote} I found ${citations.length} relevant source chunk${citations.length === 1 ? "" : "s"} and can add simple explanation without changing the subject.`,
       citations,
     };
   }
+}
+
+function usefulTerms(text: string) {
+  return text
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((term) => term.length > 2)
+    .filter(
+      (term) =>
+        ![
+          "the",
+          "and",
+          "for",
+          "with",
+          "from",
+          "this",
+          "that",
+          "what",
+          "how",
+          "why",
+          "can",
+          "you",
+          "are",
+        ].includes(term),
+    );
+}
+
+function normalizedLearnerAge(value: string) {
+  const age = Number.parseInt(value, 10);
+  return Number.isFinite(age) && age > 0 ? age : null;
 }
 
 async function generateStudyItems(documentId: string, fallbackChunks: StoredChunk[]) {
@@ -1059,6 +1144,15 @@ function excerptPreview(text: string, maxLength: number) {
   return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text;
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 function isMissingTauriRuntime(error: unknown) {
   return String(error).includes("__TAURI_INTERNALS__") || String(error).includes("not available");
 }
@@ -1119,7 +1213,7 @@ function ModelsPage({
       <section className="cards modelCards">
         <Feature icon="OLL" title="Ollama first" text="Use your local Ollama server for grounded answer synthesis before adding llama.cpp." />
         <Feature icon="KEY" title="Bring your own key" text="Use personal OpenAI, Claude, Gemini, Groq, or OpenRouter keys from environment variables." />
-        <Feature icon="EMB" title="Local embeddings" text="EchoLearn indexes deterministic 384d vectors immediately after PostgreSQL import." />
+        <Feature icon="EMB" title="Topic matching" text="EchoLearn checks whether a question strongly matches the current document before answering." />
         <Feature icon="TTS" title="Piper TTS" text="Set Piper and a voice model to generate local WAV narration from reader chunks." />
       </section>
 
@@ -1284,19 +1378,37 @@ function RuntimeField({
   );
 }
 
-function SettingsPage() {
+function SettingsPage({
+  learnerAge,
+  onLearnerAgeChange,
+}: {
+  learnerAge: string;
+  onLearnerAgeChange: (value: string) => void;
+}) {
   return (
     <section className="documentPanel">
       <div className="panelHeader">
         <h3>Settings</h3>
-        <span>Local-first configuration</span>
+        <span>Learning preferences</span>
       </div>
+
+      <label className="runtimeField learnerAgeField">
+        <span>Learner age</span>
+        <input
+          type="number"
+          min="5"
+          max="120"
+          value={learnerAge}
+          placeholder="Example: 12"
+          onChange={(event) => onLearnerAgeChange(event.target.value)}
+        />
+      </label>
 
       <div className="settingsGrid">
         <div>Theme: Dark</div>
         <div>Storage: Local encrypted</div>
         <div>Telemetry: Disabled</div>
-        <div>AI mode: Offline</div>
+        <div>AI mode: Topic-focused</div>
       </div>
     </section>
   );

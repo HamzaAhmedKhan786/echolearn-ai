@@ -223,7 +223,11 @@ fn get_document_chunks(document_id: String) -> Result<Vec<StoredChunk>, String> 
 }
 
 #[tauri::command]
-fn ask_document_question(document_id: String, question: String) -> Result<TutorAnswer, String> {
+fn ask_document_question(
+    document_id: String,
+    question: String,
+    learner_age: Option<u8>,
+) -> Result<TutorAnswer, String> {
     let Some(mut client) = connect_database()? else {
         return Err(
             "PostgreSQL is not connected. Set DATABASE_URL and run the Tauri app.".to_string(),
@@ -261,31 +265,48 @@ fn ask_document_question(document_id: String, question: String) -> Result<TutorA
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
-    let citations = scored
+    let scored_citations = scored
         .into_iter()
         .take(3)
-        .map(|(_, chunk)| AnswerCitation {
-            excerpt: excerpt(&chunk.text, 360),
-            chunk_id: chunk.id,
-            chunk_index: chunk.chunk_index,
+        .map(|(score, chunk)| {
+            (
+                score,
+                AnswerCitation {
+                    excerpt: excerpt(&chunk.text, 360),
+                    chunk_id: chunk.id,
+                    chunk_index: chunk.chunk_index,
+                },
+            )
         })
         .collect::<Vec<_>>();
 
-    if citations.is_empty() {
+    let top_score = scored_citations
+        .first()
+        .map(|(score, _)| *score)
+        .unwrap_or(0.0);
+    let citations = scored_citations
+        .into_iter()
+        .map(|(_, citation)| citation)
+        .collect::<Vec<_>>();
+
+    if citations.is_empty() || top_score < 0.04 {
         return Ok(TutorAnswer {
-            answer: "I could not find matching support in the selected document chunks. Try rephrasing or import more material.".to_string(),
+            answer: "This question does not have a strong match with the uploaded document. I can help when the question stays on the same subject or topic as the document.".to_string(),
             citations,
         });
     }
 
-    let answer = synthesize_answer(&question, &citations).unwrap_or_else(|| {
+    let answer = synthesize_answer(&question, &citations, learner_age).unwrap_or_else(|| {
         let joined = citations
             .iter()
             .map(|citation| citation.excerpt.as_str())
             .collect::<Vec<_>>()
             .join("\n\n");
+        let age_note = learner_age
+            .map(|age| format!(" I will explain it in a way that fits a {age} year old learner."))
+            .unwrap_or_default();
         format!(
-            "I found {} relevant source chunk{}. Based on the retrieved evidence: {}",
+            "This question matches the document topic.{age_note} I found {} relevant source chunk{}. Based on the retrieved material: {}",
             citations.len(),
             if citations.len() == 1 { "" } else { "s" },
             excerpt(&joined, 700)
@@ -891,15 +912,22 @@ fn cosine_similarity(left: &[f32], right: &[f32]) -> f32 {
         .max(0.0)
 }
 
-fn synthesize_answer(question: &str, citations: &[AnswerCitation]) -> Option<String> {
+fn synthesize_answer(
+    question: &str,
+    citations: &[AnswerCitation],
+    learner_age: Option<u8>,
+) -> Option<String> {
     let config = get_runtime_config().ok()?;
     let evidence = citations
         .iter()
         .map(|citation| format!("[chunk {}] {}", citation.chunk_index + 1, citation.excerpt))
         .collect::<Vec<_>>()
         .join("\n");
+    let learner_level = learner_age
+        .map(|age| format!("Explain for a learner who is {age} years old."))
+        .unwrap_or_else(|| "Explain clearly for a general learner.".to_string());
     let prompt = format!(
-        "You are EchoLearn AI. Answer only from the evidence. If the evidence is insufficient, say so.\n\nQuestion: {question}\n\nEvidence:\n{evidence}\n\nAnswer:"
+        "You are EchoLearn AI. First verify that the question has a strong topic match with the uploaded document evidence. If it does not, say: This question does not have a strong match with the uploaded document. I can help when the question stays on the same subject or topic as the document.\n\nIf it matches, answer the question using the evidence as the anchor. You may add brief outside explanation, examples, or simpler wording only when it helps the learner understand the same topic. Do not change subjects. {learner_level}\n\nQuestion: {question}\n\nDocument evidence:\n{evidence}\n\nAnswer:"
     );
 
     if let Some(answer) = synthesize_with_ollama(&config, &prompt) {

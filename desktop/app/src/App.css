@@ -805,6 +805,17 @@ button {
   margin-top: 12px;
 }
 
+.secondaryAskBtn {
+  margin-top: 8px;
+  min-height: 42px;
+  border-radius: 8px;
+  color: #dbeafe;
+  background: rgba(148, 163, 184, 0.14);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  cursor: pointer;
+  font-weight: 850;
+}
+
 .settingsGrid {
   margin-top: 18px;
   display: grid;
@@ -852,6 +863,11 @@ button {
 
 .runtimeField input:focus {
   border-color: rgba(103, 232, 249, 0.54);
+}
+
+.learnerAgeField {
+  max-width: 260px;
+  margin-top: 18px;
 }
 
 .runtimeActions {
