@@ -6,6 +6,8 @@ Related:
 - [[Mobile App]]
 - [[Setup Checklist]]
 - [[Testing Notes]]
+- [[Mobile Native Bridge]]
+- [[Local Storage]]
 
 Release artifacts are built through GitHub Actions.
 

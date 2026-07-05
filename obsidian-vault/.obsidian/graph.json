@@ -1,0 +1,72 @@
+{
+  "collapse-filter": true,
+  "search": "",
+  "showTags": false,
+  "showAttachments": false,
+  "hideUnresolved": false,
+  "showOrphans": true,
+  "collapse-color-groups": false,
+  "colorGroups": [
+    {
+      "query": "tag:#mobile OR file:\"Mobile App\" OR file:\"Mobile Native Bridge\" OR file:\"Device Preview\" OR file:\"Mobile LLM Plan\"",
+      "color": {
+        "a": 1,
+        "rgb": 3451391
+      }
+    },
+    {
+      "query": "tag:#desktop OR file:\"Desktop App\" OR file:\"Piper Voice\"",
+      "color": {
+        "a": 1,
+        "rgb": 4091053
+      }
+    },
+    {
+      "query": "tag:#ai OR file:\"AI Tutor\" OR file:\"Ollama Setup\" OR file:\"API Keys\"",
+      "color": {
+        "a": 1,
+        "rgb": 11953755
+      }
+    },
+    {
+      "query": "tag:#setup OR file:\"Runtime Setup\" OR file:\"Setup Checklist\"",
+      "color": {
+        "a": 1,
+        "rgb": 16762624
+      }
+    },
+    {
+      "query": "tag:#testing OR file:\"Testing Notes\" OR file:\"Error Log\" OR file:\"Reusable Fixes\"",
+      "color": {
+        "a": 1,
+        "rgb": 16732240
+      }
+    },
+    {
+      "query": "tag:#release OR file:\"Release Builds\"",
+      "color": {
+        "a": 1,
+        "rgb": 11256099
+      }
+    },
+    {
+      "query": "tag:#feature OR file:\"Document Upload\" OR file:\"Text To Speech\" OR file:\"Theme Settings\" OR file:\"Chat Export\" OR file:\"Local Storage\"",
+      "color": {
+        "a": 1,
+        "rgb": 65380
+      }
+    }
+  ],
+  "collapse-display": true,
+  "showArrow": false,
+  "textFadeMultiplier": 0,
+  "nodeSizeMultiplier": 1,
+  "lineSizeMultiplier": 1,
+  "collapse-forces": true,
+  "centerStrength": 0.518713248970312,
+  "repelStrength": 10,
+  "linkStrength": 1,
+  "linkDistance": 250,
+  "scale": 0.9999999999999991,
+  "close": true
+}

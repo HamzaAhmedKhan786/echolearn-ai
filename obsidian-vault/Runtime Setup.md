@@ -5,6 +5,10 @@ Related:
 - [[EchoLearn Home]]
 - [[Desktop App]]
 - [[API Keys]]
+- [[Ollama Setup]]
+- [[Piper Voice]]
+- [[Local Storage]]
+- [[Text To Speech]]
 - [[Reusable Fixes]]
 
 ## Normal User Runtime

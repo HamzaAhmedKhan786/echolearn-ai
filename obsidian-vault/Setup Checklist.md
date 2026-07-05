@@ -1,6 +1,8 @@
 # Setup Checklist
 
-Related: [[EchoLearn Home]], [[Testing Notes]], [[Error Log]], [[API Keys]], [[Mobile LLM Plan]]
+Tags: #setup #release
+
+Related: [[EchoLearn Home]], [[Testing Notes]], [[Error Log]], [[API Keys]], [[Mobile LLM Plan]], [[Runtime Setup]], [[Ollama Setup]], [[Piper Voice]], [[Release Builds]]
 
 ## Demo User Flow
 

@@ -1,11 +1,16 @@
 # Mobile LLM Plan
 
+Tags: #mobile #ai
+
 Related:
 
 - [[EchoLearn Home]]
 - [[API Keys]]
 - [[Setup Checklist]]
 - [[Testing Notes]]
+- [[Mobile App]]
+- [[AI Tutor]]
+- [[Ollama Setup]]
 
 ## Current Mobile Path
 

@@ -18,9 +18,18 @@ EchoLearn AI is a local-first study app for reading documents aloud and asking t
 - [[Desktop App]]
 - [[Mobile App]]
 - [[Document Pipeline]]
+- [[Document Upload]]
+- [[Text To Speech]]
+- [[AI Tutor]]
+- [[Chat Export]]
+- [[Local Storage]]
+- [[Theme Settings]]
 - [[Runtime Setup]]
 - [[API Keys]]
 - [[Mobile LLM Plan]]
+- [[Mobile Native Bridge]]
+- [[Piper Voice]]
+- [[Ollama Setup]]
 
 ## Demo And Delivery Notes
 

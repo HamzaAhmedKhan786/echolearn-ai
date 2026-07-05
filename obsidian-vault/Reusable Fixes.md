@@ -1,6 +1,8 @@
 # Reusable Fixes
 
-Related: [[EchoLearn Home]], [[Error Log]], [[Setup Checklist]], [[Testing Notes]]
+Tags: #testing #setup
+
+Related: [[EchoLearn Home]], [[Error Log]], [[Setup Checklist]], [[Testing Notes]], [[Runtime Setup]], [[Piper Voice]]
 
 ## Tauri app exe access denied
 

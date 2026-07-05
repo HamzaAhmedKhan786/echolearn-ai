@@ -1,6 +1,8 @@
 # Error Log
 
-Related: [[EchoLearn Home]], [[Setup Checklist]], [[Reusable Fixes]], [[Testing Notes]]
+Tags: #testing #setup
+
+Related: [[EchoLearn Home]], [[Setup Checklist]], [[Reusable Fixes]], [[Testing Notes]], [[Runtime Setup]]
 
 Use this format when something breaks:
 

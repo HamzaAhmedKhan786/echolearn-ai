@@ -5,6 +5,12 @@ Related:
 - [[EchoLearn Home]]
 - [[Mobile LLM Plan]]
 - [[Device Preview]]
+- [[Mobile Native Bridge]]
+- [[Text To Speech]]
+- [[Document Upload]]
+- [[AI Tutor]]
+- [[Local Storage]]
+- [[Theme Settings]]
 - [[Testing Notes]]
 
 The mobile app is Flutter with Device Preview enabled for Windows development.
@@ -42,3 +48,4 @@ The mobile app is Flutter with Device Preview enabled for Windows development.
 - Voice wake phrase / microphone question flow.
 - Phone-device QA for Android and iOS, especially file providers, storage persistence, and TTS rates.
 - App store packaging, signing, icons, and release builds.
+- Real [[Theme Settings]] toggle for System, Dark, and Light.

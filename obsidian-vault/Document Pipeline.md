@@ -4,6 +4,11 @@ Related:
 
 - [[EchoLearn Home]]
 - [[Desktop App]]
+- [[Document Upload]]
+- [[AI Tutor]]
+- [[Text To Speech]]
+- [[Local Storage]]
+- [[Chat Export]]
 - [[Testing Notes]]
 
 ## Pipeline

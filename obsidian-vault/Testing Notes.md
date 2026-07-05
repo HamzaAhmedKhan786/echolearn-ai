@@ -1,6 +1,8 @@
 # Testing Notes
 
-Related: [[EchoLearn Home]], [[Setup Checklist]], [[Error Log]], [[Reusable Fixes]]
+Tags: #testing #release
+
+Related: [[EchoLearn Home]], [[Setup Checklist]], [[Error Log]], [[Reusable Fixes]], [[Release Builds]], [[Desktop App]], [[Mobile App]], [[Mobile Native Bridge]]
 
 Main command:
 

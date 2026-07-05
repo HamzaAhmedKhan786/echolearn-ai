@@ -1,11 +1,17 @@
 # API Keys
 
+Tags: #ai #setup #desktop #mobile
+
 Related:
 
 - [[EchoLearn Home]]
 - [[Setup Checklist]]
 - [[Mobile LLM Plan]]
 - [[Reusable Fixes]]
+- [[AI Tutor]]
+- [[Ollama Setup]]
+- [[Mobile Native Bridge]]
+- [[Local Storage]]
 
 Never commit real keys.
 

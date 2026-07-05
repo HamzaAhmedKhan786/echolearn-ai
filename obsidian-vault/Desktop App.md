@@ -5,6 +5,14 @@ Related:
 - [[EchoLearn Home]]
 - [[Runtime Setup]]
 - [[Document Pipeline]]
+- [[Document Upload]]
+- [[Text To Speech]]
+- [[AI Tutor]]
+- [[Chat Export]]
+- [[Local Storage]]
+- [[Theme Settings]]
+- [[Piper Voice]]
+- [[Ollama Setup]]
 - [[Testing Notes]]
 
 The desktop app uses React/Vite for the interface and Tauri/Rust for local commands.
@@ -32,3 +40,4 @@ The desktop app uses React/Vite for the interface and Tauri/Rust for local comma
 - Add a polished local document library view with delete/rename.
 - Add secure API key storage instead of environment variable names only.
 - Add installer packaging.
+- Add real [[Theme Settings]] toggle for System, Dark, and Light.

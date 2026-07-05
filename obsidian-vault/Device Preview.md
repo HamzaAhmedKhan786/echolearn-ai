@@ -1,10 +1,13 @@
 # Device Preview
 
+Tags: #mobile #testing
+
 Related:
 
 - [[EchoLearn Home]]
 - [[Mobile App]]
 - [[Testing Notes]]
+- [[Mobile Native Bridge]]
 
 Device Preview is enabled in Flutter.
 
