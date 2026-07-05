@@ -20,6 +20,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             import_document_text,
             list_documents,
+            rename_document,
+            delete_document,
             get_document_chunks,
             ask_document_question,
             generate_study_items,
@@ -184,6 +186,58 @@ fn import_document_text(
 #[tauri::command]
 fn list_documents() -> Result<Vec<StoredDocument>, String> {
     Ok(load_library()?.documents)
+}
+
+#[tauri::command]
+fn rename_document(document_id: String, title: String) -> Result<StoredDocument, String> {
+    let trimmed = title.trim();
+    if trimmed.is_empty() {
+        return Err("Document title cannot be empty.".to_string());
+    }
+
+    let mut library = load_library()?;
+    let Some(document) = library
+        .documents
+        .iter_mut()
+        .find(|document| document.id == document_id)
+    else {
+        return Err("Document was not found in the local library.".to_string());
+    };
+
+    document.title = trimmed.to_string();
+    let updated = document.clone();
+    write_json(&library_path(), &library)?;
+
+    let path = document_record_path(&document_id);
+    if path.exists() {
+        let mut record = read_json::<LocalDocumentRecord>(&path)?;
+        record.document.title = trimmed.to_string();
+        write_json(&path, &record)?;
+    }
+
+    Ok(updated)
+}
+
+#[tauri::command]
+fn delete_document(document_id: String) -> Result<(), String> {
+    let mut library = load_library()?;
+    library
+        .documents
+        .retain(|document| document.id != document_id);
+    write_json(&library_path(), &library)?;
+
+    let path = document_record_path(&document_id);
+    if path.exists() {
+        fs::remove_file(&path)
+            .map_err(|error| format!("Failed to delete local document file: {error}"))?;
+    }
+
+    let index_path = default_index_dir().join(format!("{document_id}.jsonl"));
+    if index_path.exists() {
+        let _ = fs::remove_file(index_path);
+    }
+
+    Ok(())
 }
 
 #[tauri::command]

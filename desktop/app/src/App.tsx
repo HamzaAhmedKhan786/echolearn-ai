@@ -124,6 +124,8 @@ function App() {
   const [readerSearch, setReaderSearch] = useState("");
   const [fontScale, setFontScale] = useState(1);
   const [speechSpeed, setSpeechSpeed] = useState(1);
+  const [speechState, setSpeechState] = useState<"idle" | "playing" | "paused">("idle");
+  const [spokenChunkIndex, setSpokenChunkIndex] = useState(0);
   const [studyItems, setStudyItems] = useState<StudyItem[]>([]);
   const [runtimeConfig, setRuntimeConfig] = useState<RuntimeConfig>(defaultRuntimeConfig);
   const [runtimeDefaults, setRuntimeDefaults] = useState<RuntimeConfig>(defaultRuntimeConfig);
@@ -250,6 +252,48 @@ function App() {
     } catch {
       setReaderChunks([]);
       setStudyItems([]);
+    }
+  }
+
+  async function handleRenameDocument(document: StoredDocument) {
+    const title = window.prompt("Rename document", document.title);
+    if (!title || title.trim() === document.title) return;
+
+    try {
+      const updated = await invoke<StoredDocument>("rename_document", {
+        documentId: document.id,
+        title: title.trim(),
+      });
+      setDocuments((previous) =>
+        previous.map((item) => (item.id === updated.id ? updated : item)),
+      );
+      if (selectedDocument?.id === updated.id) {
+        setSelectedDocument(updated);
+        setDocumentFile((previous) => previous ? { ...previous, name: updated.title } : previous);
+      }
+      setImportStatus(`Renamed document to "${updated.title}".`);
+    } catch (error) {
+      setImportStatus(`Rename failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async function handleDeleteDocument(document: StoredDocument) {
+    const confirmed = window.confirm(`Delete "${document.title}" from the local library?`);
+    if (!confirmed) return;
+
+    try {
+      await invoke("delete_document", { documentId: document.id });
+      setDocuments((previous) => previous.filter((item) => item.id !== document.id));
+      if (selectedDocument?.id === document.id) {
+        setSelectedDocument(null);
+        setDocumentFile(null);
+        setImportResult(null);
+        setReaderChunks([]);
+        setStudyItems([]);
+      }
+      setImportStatus(`Deleted "${document.title}" from the local library.`);
+    } catch (error) {
+      setImportStatus(`Delete failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -413,26 +457,71 @@ function App() {
     }
   }
 
-  async function handleSpeakCurrentChunk() {
-    const text = readerChunks[0]?.text ?? selectedDocument?.title ?? documentFile?.name ?? "";
+  function speakChunk(chunkIndex = spokenChunkIndex) {
+    const chunk = readerChunks[chunkIndex] ?? readerChunks[0];
+    const text = chunk?.text ?? selectedDocument?.title ?? documentFile?.name ?? "";
     if (!text.trim()) {
       setImportStatus("Load a document before using TTS.");
       return;
     }
 
-    try {
-      const result = await invoke<{ audio_path: string; engine: string }>("speak_text", {
-        text: excerptPreview(text, 1200),
-        speed: speechSpeed,
-      });
-      setImportStatus(
-        result.engine === "piper"
-          ? `TTS audio generated: ${result.audio_path}`
-          : "Read aloud using Windows native TTS fallback.",
-      );
-    } catch (error) {
-      setImportStatus(`TTS failed: ${error instanceof Error ? error.message : String(error)}`);
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(excerptPreview(text, 1800));
+      utterance.rate = speechSpeed;
+      utterance.onend = () => setSpeechState("idle");
+      utterance.onerror = () => setSpeechState("idle");
+      setSpokenChunkIndex(chunk?.chunk_index ?? 0);
+      setSpeechState("playing");
+      window.speechSynthesis.speak(utterance);
+      setImportStatus(`Reading chunk ${(chunk?.chunk_index ?? 0) + 1} at ${speechSpeed.toFixed(1)}x.`);
+      return;
     }
+
+    void invoke<{ audio_path: string; engine: string }>("speak_text", {
+      text: excerptPreview(text, 1200),
+      speed: speechSpeed,
+    })
+      .then((result) => {
+        setImportStatus(
+          result.engine === "piper"
+            ? `TTS audio generated: ${result.audio_path}`
+            : "Read aloud using Windows native TTS fallback.",
+        );
+      })
+      .catch((error) => {
+        setImportStatus(`TTS failed: ${error instanceof Error ? error.message : String(error)}`);
+      });
+  }
+
+  function pauseSpeech() {
+    if ("speechSynthesis" in window && window.speechSynthesis.speaking) {
+      window.speechSynthesis.pause();
+      setSpeechState("paused");
+    }
+  }
+
+  function resumeSpeech() {
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.resume();
+      setSpeechState("playing");
+    }
+  }
+
+  function stopSpeech() {
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    setSpeechState("idle");
+    setImportStatus("Reading stopped.");
+  }
+
+  function skipSpeech(direction: -1 | 1) {
+    const nextIndex = Math.min(
+      Math.max(spokenChunkIndex + direction, 0),
+      Math.max(readerChunks.length - 1, 0),
+    );
+    speakChunk(nextIndex);
   }
 
   function handleExportChatPdf() {
@@ -559,7 +648,12 @@ function App() {
           <>
             <Hero onUploadClick={handleUploadClick} />
             <FeatureCards />
-            <LibraryList documents={documents} onOpenDocument={openStoredDocument} />
+            <LibraryList
+              documents={documents}
+              onOpenDocument={openStoredDocument}
+              onRenameDocument={handleRenameDocument}
+              onDeleteDocument={handleDeleteDocument}
+            />
             <DocumentPanel
               documentFile={documentFile}
               importResult={importResult}
@@ -580,6 +674,8 @@ function App() {
             readerSearch={readerSearch}
             fontScale={fontScale}
             speechSpeed={speechSpeed}
+            speechState={speechState}
+            spokenChunkIndex={spokenChunkIndex}
             importResult={importResult}
             importStatus={importStatus}
             documentSize={documentSize}
@@ -589,7 +685,11 @@ function App() {
             onFontScaleChange={setFontScale}
             onSpeechSpeedChange={setSpeechSpeed}
             onToggleBookmark={toggleBookmark}
-            onSpeak={handleSpeakCurrentChunk}
+            onSpeak={() => speakChunk()}
+            onPauseSpeech={pauseSpeech}
+            onResumeSpeech={resumeSpeech}
+            onStopSpeech={stopSpeech}
+            onSkipSpeech={skipSpeech}
           />
         )}
 
@@ -770,9 +870,13 @@ function FeatureCards() {
 function LibraryList({
   documents,
   onOpenDocument,
+  onRenameDocument,
+  onDeleteDocument,
 }: {
   documents: StoredDocument[];
   onOpenDocument: (document: StoredDocument) => void;
+  onRenameDocument: (document: StoredDocument) => void;
+  onDeleteDocument: (document: StoredDocument) => void;
 }) {
   return (
     <section className="documentPanel libraryList">
@@ -784,13 +888,17 @@ function LibraryList({
       {documents.length ? (
         <div className="documentRows">
           {documents.map((document) => (
-            <button className="documentRow" key={document.id} onClick={() => void onOpenDocument(document)}>
-              <div>
+            <div className="documentRow" key={document.id}>
+              <button className="documentOpenButton" onClick={() => void onOpenDocument(document)}>
                 <strong>{document.title}</strong>
                 <p>{document.file_type || "Unknown type"} / {formatFileSize(document.file_size)}</p>
-              </div>
+              </button>
               <span>{document.chunk_count} chunks</span>
-            </button>
+              <div className="documentActions">
+                <button onClick={() => void onRenameDocument(document)}>Rename</button>
+                <button onClick={() => void onDeleteDocument(document)}>Delete</button>
+              </div>
+            </div>
           ))}
         </div>
       ) : (
@@ -810,6 +918,8 @@ function ReaderPage({
   readerSearch,
   fontScale,
   speechSpeed,
+  speechState,
+  spokenChunkIndex,
   importResult,
   importStatus,
   documentSize,
@@ -820,6 +930,10 @@ function ReaderPage({
   onSpeechSpeedChange,
   onToggleBookmark,
   onSpeak,
+  onPauseSpeech,
+  onResumeSpeech,
+  onStopSpeech,
+  onSkipSpeech,
 }: {
   documentFile: DocumentFile | null;
   selectedDocument: StoredDocument | null;
@@ -828,6 +942,8 @@ function ReaderPage({
   readerSearch: string;
   fontScale: number;
   speechSpeed: number;
+  speechState: "idle" | "playing" | "paused";
+  spokenChunkIndex: number;
   importResult: ImportResult | null;
   importStatus: string;
   documentSize: string;
@@ -838,6 +954,10 @@ function ReaderPage({
   onSpeechSpeedChange: (value: number) => void;
   onToggleBookmark: (chunkId: string) => void;
   onSpeak: () => void;
+  onPauseSpeech: () => void;
+  onResumeSpeech: () => void;
+  onStopSpeech: () => void;
+  onSkipSpeech: (direction: -1 | 1) => void;
 }) {
   const visibleChunks = chunks.filter((chunk) =>
     readerSearch.trim()
@@ -859,7 +979,15 @@ function ReaderPage({
         <div className="readerToolbar">
           <button onClick={() => onFontScaleChange(Math.max(0.85, fontScale - 0.1))}>A-</button>
           <button onClick={() => onFontScaleChange(Math.min(1.35, fontScale + 0.1))}>A+</button>
-          <button onClick={onSpeak}>Listen</button>
+          <button onClick={onSpeak}>{speechState === "idle" ? "Play" : "Restart"}</button>
+          <button onClick={() => onSkipSpeech(-1)}>Back</button>
+          {speechState === "paused" ? (
+            <button onClick={onResumeSpeech}>Resume</button>
+          ) : (
+            <button onClick={onPauseSpeech}>Pause</button>
+          )}
+          <button onClick={onStopSpeech}>Stop</button>
+          <button onClick={() => onSkipSpeech(1)}>Next</button>
           <button onClick={() => onSpeechSpeedChange(Math.max(0.5, Number((speechSpeed - 0.1).toFixed(1))))}>
             Slower
           </button>
@@ -874,6 +1002,7 @@ function ReaderPage({
             onChange={(event) => onSearchChange(event.target.value)}
           />
           <span>{bookmarkedChunkIds.length} bookmarks</span>
+          <span>Chunk {Math.min(spokenChunkIndex + 1, Math.max(chunks.length, 1))}/{Math.max(chunks.length, 1)}</span>
         </div>
         <article style={{ fontSize: `${fontScale}rem` }}>
           <h3>{selectedDocument?.title ?? documentFile?.name ?? "No document loaded"}</h3>
