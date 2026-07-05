@@ -296,7 +296,15 @@ The desktop app stores imported documents, chunks, runtime settings, and vector 
 
 ## Local AI and TTS paths
 
-In the app, open `Models` and set:
+Suggested local paths live in:
+
+```text
+config/runtime-defaults.json
+```
+
+Edit that file when you want the app to auto-fill model and TTS paths for your machine. In the app, open `Models` and click `Load suggested paths`.
+
+The important fields are:
 
 * `Ollama endpoint`: normally `http://127.0.0.1:11434`
 * `Ollama model`: for example `llama3.2:1b`

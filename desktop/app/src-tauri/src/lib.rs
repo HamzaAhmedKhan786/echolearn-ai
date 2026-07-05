@@ -28,6 +28,7 @@ pub fn run() {
             build_vector_index,
             validate_tts_setup,
             validate_tts_config,
+            get_runtime_defaults,
             speak_text
         ])
         .run(tauri::generate_context!())
@@ -307,27 +308,21 @@ fn generate_study_items(document_id: String) -> Result<Vec<StudyItem>, String> {
 
 #[tauri::command]
 fn get_runtime_config() -> Result<RuntimeConfig, String> {
-    let mut config = RuntimeConfig {
-        cloud_provider: std::env::var("CLOUD_LLM_PROVIDER").unwrap_or_else(|_| "none".to_string()),
-        cloud_api_base_url: std::env::var("CLOUD_LLM_BASE_URL").unwrap_or_default(),
-        cloud_model: std::env::var("CLOUD_LLM_MODEL").unwrap_or_default(),
-        cloud_api_key_env: std::env::var("CLOUD_LLM_API_KEY_ENV").unwrap_or_default(),
-        ollama_endpoint: std::env::var("OLLAMA_ENDPOINT")
-            .unwrap_or_else(|_| "http://127.0.0.1:11434".to_string()),
-        ollama_model: std::env::var("OLLAMA_MODEL").unwrap_or_default(),
-        llama_binary_path: std::env::var("LLAMA_CPP_BIN").unwrap_or_default(),
-        llm_model_path: std::env::var("LLM_MODEL_PATH").unwrap_or_default(),
-        piper_binary_path: std::env::var("PIPER_BIN").unwrap_or_default(),
-        piper_voice_path: std::env::var("PIPER_VOICE_PATH").unwrap_or_default(),
-        faiss_index_dir: std::env::var("FAISS_INDEX_DIR")
-            .unwrap_or_else(|_| default_index_dir().to_string_lossy().to_string()),
-    };
+    let mut config = default_runtime_config();
+    merge_runtime_config(&mut config, load_runtime_defaults()?);
 
     if runtime_config_path().exists() {
         let saved = read_json::<RuntimeConfig>(&runtime_config_path())?;
-        config = saved;
+        merge_runtime_config(&mut config, saved);
     }
 
+    Ok(config)
+}
+
+#[tauri::command]
+fn get_runtime_defaults() -> Result<RuntimeConfig, String> {
+    let mut config = default_runtime_config();
+    merge_runtime_config(&mut config, load_runtime_defaults()?);
     Ok(config)
 }
 
@@ -367,12 +362,13 @@ fn validate_tts_config(config: RuntimeConfig) -> Result<TtsStatus, String> {
 }
 
 #[tauri::command]
-fn speak_text(text: String) -> Result<SpeechResult, String> {
+fn speak_text(text: String, speed: Option<f32>) -> Result<SpeechResult, String> {
     let config = get_runtime_config()?;
     let status = build_tts_status(&config);
+    let speed = speed.unwrap_or(1.0).clamp(0.5, 2.0);
 
     if !status.piper_ready {
-        speak_with_windows_tts(&text)?;
+        speak_with_windows_tts(&text, speed)?;
         return Ok(SpeechResult {
             audio_path: "windows-native-tts".to_string(),
             engine: "windows-native".to_string(),
@@ -389,6 +385,8 @@ fn speak_text(text: String) -> Result<SpeechResult, String> {
     let mut child = Command::new(binary)
         .arg("--model")
         .arg(voice)
+        .arg("--length_scale")
+        .arg(format!("{:.2}", 1.0 / speed))
         .arg("--output_file")
         .arg(&audio_path)
         .stdin(std::process::Stdio::piped())
@@ -472,7 +470,7 @@ fn voice_config_path(voice_path: &Path) -> PathBuf {
     path
 }
 
-fn speak_with_windows_tts(text: &str) -> Result<(), String> {
+fn speak_with_windows_tts(text: &str, speed: f32) -> Result<(), String> {
     if !cfg!(target_os = "windows") {
         return Err(
             "Piper is not configured and native TTS fallback is only available on Windows."
@@ -480,11 +478,13 @@ fn speak_with_windows_tts(text: &str) -> Result<(), String> {
         );
     }
 
+    let rate = ((speed - 1.0) * 10.0).round().clamp(-8.0, 8.0) as i32;
     let output = Command::new("powershell")
         .arg("-NoProfile")
         .arg("-Command")
-        .arg("Add-Type -AssemblyName System.Speech; $speaker = New-Object System.Speech.Synthesis.SpeechSynthesizer; $speaker.Speak($env:ECHOLEARN_TTS_TEXT)")
+        .arg("Add-Type -AssemblyName System.Speech; $speaker = New-Object System.Speech.Synthesis.SpeechSynthesizer; $speaker.Rate = [int]$env:ECHOLEARN_TTS_RATE; $speaker.Speak($env:ECHOLEARN_TTS_TEXT)")
         .env("ECHOLEARN_TTS_TEXT", text)
+        .env("ECHOLEARN_TTS_RATE", rate.to_string())
         .output()
         .map_err(|error| format!("Failed to start Windows native TTS: {error}"))?;
 
@@ -785,6 +785,83 @@ fn write_json<T: serde::Serialize>(path: &Path, value: &T) -> Result<(), String>
         .map_err(|error| format!("Failed to encode local data: {error}"))?;
     fs::write(path, text)
         .map_err(|error| format!("Failed to write {}: {error}", path.to_string_lossy()))
+}
+
+fn default_runtime_config() -> RuntimeConfig {
+    RuntimeConfig {
+        cloud_provider: std::env::var("CLOUD_LLM_PROVIDER").unwrap_or_else(|_| "none".to_string()),
+        cloud_api_base_url: std::env::var("CLOUD_LLM_BASE_URL").unwrap_or_default(),
+        cloud_model: std::env::var("CLOUD_LLM_MODEL").unwrap_or_default(),
+        cloud_api_key_env: std::env::var("CLOUD_LLM_API_KEY_ENV").unwrap_or_default(),
+        ollama_endpoint: std::env::var("OLLAMA_ENDPOINT")
+            .unwrap_or_else(|_| "http://127.0.0.1:11434".to_string()),
+        ollama_model: std::env::var("OLLAMA_MODEL").unwrap_or_default(),
+        llama_binary_path: std::env::var("LLAMA_CPP_BIN").unwrap_or_default(),
+        llm_model_path: std::env::var("LLM_MODEL_PATH").unwrap_or_default(),
+        piper_binary_path: std::env::var("PIPER_BIN").unwrap_or_default(),
+        piper_voice_path: std::env::var("PIPER_VOICE_PATH").unwrap_or_default(),
+        faiss_index_dir: std::env::var("FAISS_INDEX_DIR")
+            .unwrap_or_else(|_| default_index_dir().to_string_lossy().to_string()),
+    }
+}
+
+fn load_runtime_defaults() -> Result<RuntimeConfig, String> {
+    for path in runtime_defaults_candidates() {
+        if path.exists() {
+            return read_json::<RuntimeConfig>(&path);
+        }
+    }
+
+    Ok(RuntimeConfig::default())
+}
+
+fn runtime_defaults_candidates() -> Vec<PathBuf> {
+    let current = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    vec![
+        current.join("config").join("runtime-defaults.json"),
+        current
+            .join("..")
+            .join("..")
+            .join("config")
+            .join("runtime-defaults.json"),
+        app_data_dir().join("runtime-defaults.json"),
+    ]
+}
+
+fn merge_runtime_config(target: &mut RuntimeConfig, source: RuntimeConfig) {
+    if !source.cloud_provider.trim().is_empty() {
+        target.cloud_provider = source.cloud_provider;
+    }
+    if !source.cloud_api_base_url.trim().is_empty() {
+        target.cloud_api_base_url = source.cloud_api_base_url;
+    }
+    if !source.cloud_model.trim().is_empty() {
+        target.cloud_model = source.cloud_model;
+    }
+    if !source.cloud_api_key_env.trim().is_empty() {
+        target.cloud_api_key_env = source.cloud_api_key_env;
+    }
+    if !source.ollama_endpoint.trim().is_empty() {
+        target.ollama_endpoint = source.ollama_endpoint;
+    }
+    if !source.ollama_model.trim().is_empty() {
+        target.ollama_model = source.ollama_model;
+    }
+    if !source.llama_binary_path.trim().is_empty() {
+        target.llama_binary_path = source.llama_binary_path;
+    }
+    if !source.llm_model_path.trim().is_empty() {
+        target.llm_model_path = source.llm_model_path;
+    }
+    if !source.piper_binary_path.trim().is_empty() {
+        target.piper_binary_path = source.piper_binary_path;
+    }
+    if !source.piper_voice_path.trim().is_empty() {
+        target.piper_voice_path = source.piper_voice_path;
+    }
+    if !source.faiss_index_dir.trim().is_empty() {
+        target.faiss_index_dir = source.faiss_index_dir;
+    }
 }
 
 fn default_audio_dir() -> PathBuf {

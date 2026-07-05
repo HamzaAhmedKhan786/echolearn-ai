@@ -123,8 +123,10 @@ function App() {
   const [bookmarkedChunkIds, setBookmarkedChunkIds] = useState<string[]>([]);
   const [readerSearch, setReaderSearch] = useState("");
   const [fontScale, setFontScale] = useState(1);
+  const [speechSpeed, setSpeechSpeed] = useState(1);
   const [studyItems, setStudyItems] = useState<StudyItem[]>([]);
   const [runtimeConfig, setRuntimeConfig] = useState<RuntimeConfig>(defaultRuntimeConfig);
+  const [runtimeDefaults, setRuntimeDefaults] = useState<RuntimeConfig>(defaultRuntimeConfig);
   const [modelStatus, setModelStatus] = useState("Configure local model paths to enable topic-focused answers and Piper TTS.");
   const [ttsStatus, setTtsStatus] = useState<TtsStatus | null>(null);
   const [ttsValidationStatus, setTtsValidationStatus] = useState("");
@@ -263,10 +265,13 @@ function App() {
     void refreshDocuments();
     void (async () => {
       try {
+        const defaults = await invoke<RuntimeConfig>("get_runtime_defaults");
         const config = await invoke<RuntimeConfig>("get_runtime_config");
+        setRuntimeDefaults(defaults);
         setRuntimeConfig(config);
         setTtsStatus(await invoke<TtsStatus>("validate_tts_setup"));
       } catch {
+        setRuntimeDefaults(defaultRuntimeConfig);
         setRuntimeConfig(defaultRuntimeConfig);
         setTtsStatus(null);
       }
@@ -365,6 +370,11 @@ function App() {
     }
   }
 
+  function handleLoadRuntimeDefaults() {
+    setRuntimeConfig(runtimeDefaults);
+    setModelStatus("Loaded suggested paths from config/runtime-defaults.json. Save paths to keep them.");
+  }
+
   async function handleValidateTts(config: RuntimeConfig) {
     setTtsValidationBusy(true);
     setTtsValidationStatus("Checking the visible TTS paths...");
@@ -413,6 +423,7 @@ function App() {
     try {
       const result = await invoke<{ audio_path: string; engine: string }>("speak_text", {
         text: excerptPreview(text, 1200),
+        speed: speechSpeed,
       });
       setImportStatus(
         result.engine === "piper"
@@ -568,6 +579,7 @@ function App() {
             bookmarkedChunkIds={bookmarkedChunkIds}
             readerSearch={readerSearch}
             fontScale={fontScale}
+            speechSpeed={speechSpeed}
             importResult={importResult}
             importStatus={importStatus}
             documentSize={documentSize}
@@ -575,6 +587,7 @@ function App() {
             onUploadClick={handleUploadClick}
             onSearchChange={setReaderSearch}
             onFontScaleChange={setFontScale}
+            onSpeechSpeedChange={setSpeechSpeed}
             onToggleBookmark={toggleBookmark}
             onSpeak={handleSpeakCurrentChunk}
           />
@@ -600,11 +613,13 @@ function App() {
           <ModelsPage
             key={JSON.stringify(runtimeConfig)}
             config={runtimeConfig}
+            defaults={runtimeDefaults}
             status={modelStatus}
             ttsStatus={ttsStatus}
             ttsValidationStatus={ttsValidationStatus}
             ttsValidationBusy={ttsValidationBusy}
             onSave={handleSaveRuntimeConfig}
+            onLoadDefaults={handleLoadRuntimeDefaults}
             onBuildIndex={handleBuildIndex}
             onValidateTts={handleValidateTts}
           />
@@ -794,6 +809,7 @@ function ReaderPage({
   bookmarkedChunkIds,
   readerSearch,
   fontScale,
+  speechSpeed,
   importResult,
   importStatus,
   documentSize,
@@ -801,6 +817,7 @@ function ReaderPage({
   onUploadClick,
   onSearchChange,
   onFontScaleChange,
+  onSpeechSpeedChange,
   onToggleBookmark,
   onSpeak,
 }: {
@@ -810,6 +827,7 @@ function ReaderPage({
   bookmarkedChunkIds: string[];
   readerSearch: string;
   fontScale: number;
+  speechSpeed: number;
   importResult: ImportResult | null;
   importStatus: string;
   documentSize: string;
@@ -817,6 +835,7 @@ function ReaderPage({
   onUploadClick: () => void;
   onSearchChange: (value: string) => void;
   onFontScaleChange: (value: number) => void;
+  onSpeechSpeedChange: (value: number) => void;
   onToggleBookmark: (chunkId: string) => void;
   onSpeak: () => void;
 }) {
@@ -841,6 +860,13 @@ function ReaderPage({
           <button onClick={() => onFontScaleChange(Math.max(0.85, fontScale - 0.1))}>A-</button>
           <button onClick={() => onFontScaleChange(Math.min(1.35, fontScale + 0.1))}>A+</button>
           <button onClick={onSpeak}>Listen</button>
+          <button onClick={() => onSpeechSpeedChange(Math.max(0.5, Number((speechSpeed - 0.1).toFixed(1))))}>
+            Slower
+          </button>
+          <span>{speechSpeed.toFixed(1)}x</span>
+          <button onClick={() => onSpeechSpeedChange(Math.min(2, Number((speechSpeed + 0.1).toFixed(1))))}>
+            Faster
+          </button>
           <input
             aria-label="Search document"
             placeholder="Search chunks..."
@@ -1185,20 +1211,24 @@ function WorkPage({
 
 function ModelsPage({
   config,
+  defaults,
   status,
   ttsStatus,
   ttsValidationStatus,
   ttsValidationBusy,
   onSave,
+  onLoadDefaults,
   onBuildIndex,
   onValidateTts,
 }: {
   config: RuntimeConfig;
+  defaults: RuntimeConfig;
   status: string;
   ttsStatus: TtsStatus | null;
   ttsValidationStatus: string;
   ttsValidationBusy: boolean;
   onSave: (config: RuntimeConfig) => void;
+  onLoadDefaults: () => void;
   onBuildIndex: () => void;
   onValidateTts: (config: RuntimeConfig) => void;
 }) {
@@ -1227,72 +1257,73 @@ function ModelsPage({
           <RuntimeField
             label="Ollama endpoint"
             value={draft.ollama_endpoint}
-            placeholder="http://127.0.0.1:11434"
+            placeholder={defaults.ollama_endpoint || "http://127.0.0.1:11434"}
             onChange={(value) => updateField("ollama_endpoint", value)}
           />
           <RuntimeField
             label="Ollama model"
             value={draft.ollama_model}
-            placeholder="llama3.2:1b"
+            placeholder={defaults.ollama_model || "llama3.2:1b"}
             onChange={(value) => updateField("ollama_model", value)}
           />
           <RuntimeField
             label="Cloud provider"
             value={draft.cloud_provider}
-            placeholder="none / openai / anthropic / gemini / groq / openrouter"
+            placeholder={defaults.cloud_provider || "none / openai / anthropic / gemini / groq / openrouter"}
             onChange={(value) => updateField("cloud_provider", value)}
           />
           <RuntimeField
             label="Cloud API base URL"
             value={draft.cloud_api_base_url}
-            placeholder="https://api.openai.com/v1"
+            placeholder={defaults.cloud_api_base_url || "https://api.openai.com/v1"}
             onChange={(value) => updateField("cloud_api_base_url", value)}
           />
           <RuntimeField
             label="Cloud model"
             value={draft.cloud_model}
-            placeholder="gpt-4.1-mini / claude-haiku / gemini-flash / llama-3.1-8b"
+            placeholder={defaults.cloud_model || "gpt-4.1-mini / claude-haiku / gemini-flash / llama-3.1-8b"}
             onChange={(value) => updateField("cloud_model", value)}
           />
           <RuntimeField
             label="API key env var"
             value={draft.cloud_api_key_env}
-            placeholder="OPENAI_API_KEY"
+            placeholder={defaults.cloud_api_key_env || "OPENAI_API_KEY"}
             onChange={(value) => updateField("cloud_api_key_env", value)}
           />
           <RuntimeField
             label="llama.cpp binary"
             value={draft.llama_binary_path}
-            placeholder="C:\\Tools\\llama.cpp\\llama-cli.exe"
+            placeholder={defaults.llama_binary_path || "C:\\Tools\\llama.cpp\\llama-cli.exe"}
             onChange={(value) => updateField("llama_binary_path", value)}
           />
           <RuntimeField
             label="GGUF LLM model"
             value={draft.llm_model_path}
-            placeholder="D:\\Models\\mistral-7b-instruct.Q4_K_M.gguf"
+            placeholder={defaults.llm_model_path || "D:\\Models\\mistral-7b-instruct.Q4_K_M.gguf"}
             onChange={(value) => updateField("llm_model_path", value)}
           />
           <RuntimeField
             label="Piper binary"
             value={draft.piper_binary_path}
-            placeholder="C:\\Tools\\piper\\piper.exe"
+            placeholder={defaults.piper_binary_path || "C:\\Tools\\piper\\piper.exe"}
             onChange={(value) => updateField("piper_binary_path", value)}
           />
           <RuntimeField
             label="Piper voice model"
             value={draft.piper_voice_path}
-            placeholder="D:\\Models\\piper\\en_US-lessac-medium.onnx"
+            placeholder={defaults.piper_voice_path || "D:\\Models\\piper\\en_US-lessac-medium.onnx"}
             onChange={(value) => updateField("piper_voice_path", value)}
           />
           <RuntimeField
             label="FAISS export directory"
             value={draft.faiss_index_dir}
-            placeholder="C:\\Users\\DELL\\Documents\\EchoLearn\\faiss"
+            placeholder={defaults.faiss_index_dir || "C:\\Users\\DELL\\Documents\\EchoLearn\\faiss"}
             onChange={(value) => updateField("faiss_index_dir", value)}
           />
         </div>
 
         <div className="runtimeActions">
+          <button className="secondary" onClick={onLoadDefaults}>Load suggested paths</button>
           <button onClick={() => onSave(draft)}>Save paths</button>
           <button className="secondary" onClick={onBuildIndex}>Rebuild vector export</button>
         </div>

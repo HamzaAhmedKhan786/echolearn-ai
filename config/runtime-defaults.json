@@ -1,0 +1,13 @@
+{
+  "cloud_provider": "none",
+  "cloud_api_base_url": "",
+  "cloud_model": "",
+  "cloud_api_key_env": "",
+  "ollama_endpoint": "http://127.0.0.1:11434",
+  "ollama_model": "llama3.2:1b",
+  "llama_binary_path": "",
+  "llm_model_path": "",
+  "piper_binary_path": "C:\\Users\\DELL\\Downloads\\setups\\piper_windows_amd64\\piper\\piper.exe",
+  "piper_voice_path": "C:\\Users\\DELL\\Downloads\\setups\\piper_windows_amd64\\piper\\voices\\en_GB-cori-high.onnx",
+  "faiss_index_dir": "C:\\Users\\DELL\\Documents\\EchoLearn\\faiss"
+}

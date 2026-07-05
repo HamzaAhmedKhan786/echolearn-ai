@@ -13,6 +13,7 @@ EchoLearn should run without PostgreSQL, Docker, or a `.env` file.
 
 - Documents: local app library.
 - Settings: local `runtime-config.json`.
+- Suggested paths: `config/runtime-defaults.json`.
 - Chat: local browser/app storage.
 - Desktop TTS: Windows native voice first, optional Piper.
 - Mobile TTS: Android/iOS native voice first.
@@ -30,6 +31,7 @@ EchoLearn should run without PostgreSQL, Docker, or a `.env` file.
 - Voice config: matching `.onnx.json`
 - Desktop validates binary, voice, and config.
 - Desktop falls back to Windows native TTS if Piper is not ready.
+- Use `Models -> Load suggested paths` after editing `config/runtime-defaults.json`.
 
 ## Demo Message
 
