@@ -355,12 +355,11 @@ function App() {
 
   async function handleValidateTts(config: RuntimeConfig) {
     setTtsValidationBusy(true);
-    setTtsValidationStatus("Saving visible paths and checking TTS setup...");
+    setTtsValidationStatus("Checking the visible TTS paths...");
     setRuntimeConfig(config);
 
     try {
-      await invoke<RuntimeConfig>("save_runtime_config", { config });
-      const status = await invoke<TtsStatus>("validate_tts_setup");
+      const status = await invoke<TtsStatus>("validate_tts_config", { config });
       setTtsStatus(status);
       setTtsValidationStatus(
         status.piper_ready

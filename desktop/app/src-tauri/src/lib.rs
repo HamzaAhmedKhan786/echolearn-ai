@@ -32,6 +32,7 @@ pub fn run() {
             save_runtime_config,
             build_vector_index,
             validate_tts_setup,
+            validate_tts_config,
             speak_text
         ])
         .run(tauri::generate_context!())
@@ -492,6 +493,11 @@ fn build_vector_index(document_id: String) -> Result<IndexResult, String> {
 #[tauri::command]
 fn validate_tts_setup() -> Result<TtsStatus, String> {
     let config = get_runtime_config()?;
+    Ok(build_tts_status(&config))
+}
+
+#[tauri::command]
+fn validate_tts_config(config: RuntimeConfig) -> Result<TtsStatus, String> {
     Ok(build_tts_status(&config))
 }
 
