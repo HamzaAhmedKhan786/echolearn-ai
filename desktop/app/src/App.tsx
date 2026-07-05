@@ -127,6 +127,8 @@ function App() {
   const [runtimeConfig, setRuntimeConfig] = useState<RuntimeConfig>(defaultRuntimeConfig);
   const [modelStatus, setModelStatus] = useState("Configure local model paths to enable LLM synthesis and Piper TTS.");
   const [ttsStatus, setTtsStatus] = useState<TtsStatus | null>(null);
+  const [ttsValidationStatus, setTtsValidationStatus] = useState("");
+  const [ttsValidationBusy, setTtsValidationBusy] = useState(false);
   const [showStartupGuide, setShowStartupGuide] = useState(true);
   const [importStatus, setImportStatus] = useState("No document imported yet.");
   const [chatMessages, setChatMessages] = useState<string[]>([
@@ -270,10 +272,21 @@ function App() {
   }, []);
 
   async function refreshTtsStatus() {
+    setTtsValidationBusy(true);
+    setTtsValidationStatus("Checking TTS setup...");
     try {
-      setTtsStatus(await invoke<TtsStatus>("validate_tts_setup"));
-    } catch {
+      const status = await invoke<TtsStatus>("validate_tts_setup");
+      setTtsStatus(status);
+      setTtsValidationStatus(
+        status.piper_ready
+          ? "TTS validation passed. Piper is ready."
+          : "TTS validation finished. Windows voice fallback is available, but Piper is not fully configured.",
+      );
+    } catch (error) {
       setTtsStatus(null);
+      setTtsValidationStatus(`TTS validation failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setTtsValidationBusy(false);
     }
   }
 
@@ -337,6 +350,27 @@ function App() {
       await refreshTtsStatus();
     } catch (error) {
       setModelStatus(`Runtime paths are kept in this preview. Tauri save failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  async function handleValidateTts(config: RuntimeConfig) {
+    setTtsValidationBusy(true);
+    setTtsValidationStatus("Saving visible paths and checking TTS setup...");
+    setRuntimeConfig(config);
+
+    try {
+      await invoke<RuntimeConfig>("save_runtime_config", { config });
+      const status = await invoke<TtsStatus>("validate_tts_setup");
+      setTtsStatus(status);
+      setTtsValidationStatus(
+        status.piper_ready
+          ? "TTS validation passed. Piper is ready."
+          : "TTS validation finished. Windows voice fallback is available, but Piper is not fully configured.",
+      );
+    } catch (error) {
+      setTtsValidationStatus(`TTS validation failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setTtsValidationBusy(false);
     }
   }
 
@@ -529,9 +563,11 @@ function App() {
             config={runtimeConfig}
             status={modelStatus}
             ttsStatus={ttsStatus}
+            ttsValidationStatus={ttsValidationStatus}
+            ttsValidationBusy={ttsValidationBusy}
             onSave={handleSaveRuntimeConfig}
             onBuildIndex={handleBuildIndex}
-            onValidateTts={refreshTtsStatus}
+            onValidateTts={handleValidateTts}
           />
         )}
 
@@ -1058,6 +1094,8 @@ function ModelsPage({
   config,
   status,
   ttsStatus,
+  ttsValidationStatus,
+  ttsValidationBusy,
   onSave,
   onBuildIndex,
   onValidateTts,
@@ -1065,9 +1103,11 @@ function ModelsPage({
   config: RuntimeConfig;
   status: string;
   ttsStatus: TtsStatus | null;
+  ttsValidationStatus: string;
+  ttsValidationBusy: boolean;
   onSave: (config: RuntimeConfig) => void;
   onBuildIndex: () => void;
-  onValidateTts: () => void;
+  onValidateTts: (config: RuntimeConfig) => void;
 }) {
   const [draft, setDraft] = useState(config);
 
@@ -1193,8 +1233,12 @@ function ModelsPage({
           </div>
         )}
 
+        {ttsValidationStatus && <p className="modelStatus">{ttsValidationStatus}</p>}
+
         <div className="runtimeActions">
-          <button onClick={onValidateTts}>Validate TTS</button>
+          <button disabled={ttsValidationBusy} onClick={() => onValidateTts(draft)}>
+            {ttsValidationBusy ? "Checking TTS..." : "Validate TTS"}
+          </button>
           <a
             className="secondaryLink"
             href="https://huggingface.co/rhasspy/piper-voices/tree/v1.0.0"

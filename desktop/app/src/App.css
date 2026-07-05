@@ -24,6 +24,11 @@ input {
   font: inherit;
 }
 
+button:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
 button {
   border: 0;
 }
