@@ -27,12 +27,18 @@ The mobile app is Flutter with Device Preview enabled for Windows development.
 - Mobile tutor has a local topic-match fallback when the native bridge is unavailable.
 - Mobile study page generates simple review prompts from selected chunks.
 - Device Preview is enabled.
+- Android document import opens the native document picker for readable text files and chunks the imported text.
+- Android secure API key storage uses Android Keystore-backed encrypted preferences.
+- iOS document import uses UIDocumentPicker for readable text files and chunks the imported text.
+- iOS secure API key storage uses Keychain.
+- Mobile state can persist through the native bridge on Android/iOS.
+- Reader includes native TTS speed and stop controls.
+- Microphone and speech-recognition permission metadata is present for the later voice-question flow.
 
 ## Remaining Mobile Work
 
-- Real document picker and parser.
-- Persistent mobile storage for documents/chats/settings.
-- Secure key storage.
-- Real mobile Q&A bridge connected to native chunks and provider settings.
-- Play/pause/speed controls for native TTS.
+- Binary PDF/DOCX/EPUB parsing on phones. Current native mobile picker reads text-style files; richer formats need mobile parser packages or a shared extraction service.
+- Real hosted/mobile LLM provider call from saved API keys.
 - Voice wake phrase / microphone question flow.
+- Phone-device QA for Android and iOS, especially file providers, storage persistence, and TTS rates.
+- App store packaging, signing, icons, and release builds.

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:device_preview/device_preview.dart';
 import 'package:flutter/material.dart';
 import 'services/echolearn_bridge.dart';
@@ -50,14 +52,65 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int selectedIndex = 0;
   final List<MobileDocument> documents = [];
-  final List<String> chatMessages = ['Import a document, then ask a question about its topic.'];
+  final List<String> chatMessages = [
+    'Import a document, then ask a question about its topic.'
+  ];
   MobileDocument? selectedDocument;
   String learnerAge = '';
 
   @override
   void initState() {
     super.initState();
+    loadMobileState();
     WidgetsBinding.instance.addPostFrameCallback((_) => showStartupGuide());
+  }
+
+  Future<void> loadMobileState() async {
+    try {
+      final rawState = await mobileBridge.loadMobileState();
+      if (rawState == null || rawState.isEmpty) return;
+      final state = jsonDecode(rawState) as Map<String, dynamic>;
+      final loadedDocuments = (state['documents'] as List? ?? const [])
+          .whereType<Map>()
+          .map((item) =>
+              MobileDocument.fromJson(Map<String, dynamic>.from(item)))
+          .toList();
+      final selectedId = state['selectedDocumentId'] as String?;
+      setState(() {
+        documents
+          ..clear()
+          ..addAll(loadedDocuments);
+        chatMessages
+          ..clear()
+          ..addAll((state['chatMessages'] as List? ?? const [])
+              .map((item) => item.toString()));
+        if (chatMessages.isEmpty) {
+          chatMessages
+              .add('Import a document, then ask a question about its topic.');
+        }
+        learnerAge = state['learnerAge'] as String? ?? '';
+        selectedDocument = documents.cast<MobileDocument?>().firstWhere(
+              (item) => item?.id == selectedId,
+              orElse: () => documents.isEmpty ? null : documents.first,
+            );
+      });
+    } catch (_) {
+      // Device Preview on Windows does not expose the mobile native storage bridge.
+    }
+  }
+
+  Future<void> saveMobileState() async {
+    final state = {
+      'documents': documents.map((document) => document.toJson()).toList(),
+      'selectedDocumentId': selectedDocument?.id,
+      'chatMessages': chatMessages,
+      'learnerAge': learnerAge,
+    };
+    try {
+      await mobileBridge.saveMobileState(jsonEncode(state));
+    } catch (_) {
+      // Device Preview on Windows does not expose the mobile native storage bridge.
+    }
   }
 
   Future<void> showStartupGuide() {
@@ -80,11 +133,13 @@ class _AppShellState extends State<AppShell> {
               SizedBox(height: 8),
               Text('- Use your own API key for hosted AI.'),
               Text('- Use local AI when an on-device model is available.'),
-              Text('- EchoLearn can explain beyond the file only when the topic still matches.'),
+              Text(
+                  '- EchoLearn can explain beyond the file only when the topic still matches.'),
               SizedBox(height: 14),
               Text('Privacy'),
               SizedBox(height: 8),
-              Text('- Documents and chats stay on your device unless you choose an external AI provider.'),
+              Text(
+                  '- Documents and chats stay on your device unless you choose an external AI provider.'),
             ],
           ),
         ),
@@ -111,11 +166,14 @@ class _AppShellState extends State<AppShell> {
             selectedDocument = document;
             chatMessages
               ..clear()
-              ..add('Document "${document.title}" is ready for reading and topic-focused questions.');
+              ..add(
+                  'Document "${document.title}" is ready for reading and topic-focused questions.');
           });
+          saveMobileState();
         },
         onSelected: (document) {
           setState(() => selectedDocument = document);
+          saveMobileState();
         },
       ),
       ReaderPage(document: selectedDocument),
@@ -125,6 +183,7 @@ class _AppShellState extends State<AppShell> {
         messages: chatMessages,
         onMessage: (message) {
           setState(() => chatMessages.add(message));
+          saveMobileState();
         },
       ),
       StudyPage(document: selectedDocument),
@@ -132,6 +191,7 @@ class _AppShellState extends State<AppShell> {
         learnerAge: learnerAge,
         onLearnerAgeChanged: (value) {
           setState(() => learnerAge = value);
+          saveMobileState();
         },
       ),
     ];
@@ -210,6 +270,24 @@ class MobileDocument {
   final List<String> chunks;
 
   int get chunkCount => chunks.length;
+
+  factory MobileDocument.fromJson(Map<String, dynamic> json) {
+    return MobileDocument(
+      id: json['id'] as String? ?? '',
+      title: json['title'] as String? ?? 'Untitled',
+      chunks: (json['chunks'] as List? ?? const [])
+          .map((item) => item.toString())
+          .toList(),
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'chunks': chunks,
+    };
+  }
 }
 
 class LibraryPage extends StatefulWidget {
@@ -242,7 +320,9 @@ class _LibraryPageState extends State<LibraryPage> {
             id: document.id,
             title: document.title,
             chunks: document.chunks.isEmpty
-                ? ['${document.title} was imported. Native parser chunks will appear here when provided by the device bridge.']
+                ? [
+                    '${document.title} was imported. Native parser chunks will appear here when provided by the device bridge.'
+                  ]
                 : document.chunks,
           ),
         );
@@ -253,7 +333,8 @@ class _LibraryPageState extends State<LibraryPage> {
             : 'Imported ${document.title} with ${document.chunkCount} chunks.';
       });
     } catch (error) {
-      setState(() => status = 'Import is not available on this device yet: $error');
+      setState(
+          () => status = 'Import is not available on this device yet: $error');
     }
   }
 
@@ -273,14 +354,16 @@ class _LibraryPageState extends State<LibraryPage> {
         const ActionPanel(
           icon: Icons.lock_outline,
           title: 'Private local library',
-          body: 'Imported documents are prepared for reading, listening, and topic-focused tutoring.',
+          body:
+              'Imported documents are prepared for reading, listening, and topic-focused tutoring.',
         ),
         if (widget.documents.isNotEmpty)
           ...widget.documents.map(
             (document) => ActionPanel(
               icon: Icons.description_outlined,
               title: document.title,
-              body: '${document.chunkCount} chunks ready${widget.selectedDocument?.id == document.id ? ' - selected' : ''}',
+              body:
+                  '${document.chunkCount} chunks ready${widget.selectedDocument?.id == document.id ? ' - selected' : ''}',
               trailing: TextButton(
                 onPressed: () => widget.onSelected(document),
                 child: const Text('Open'),
@@ -292,7 +375,8 @@ class _LibraryPageState extends State<LibraryPage> {
             MetricItem(label: 'Documents', value: '${widget.documents.length}'),
             MetricItem(
               label: 'Ready chunks',
-              value: '${widget.documents.fold<int>(0, (total, doc) => total + doc.chunkCount)}',
+              value:
+                  '${widget.documents.fold<int>(0, (total, doc) => total + doc.chunkCount)}',
             ),
             const MetricItem(label: 'Chats saved', value: 'Local'),
             const MetricItem(label: 'Study items', value: 'Auto'),
@@ -305,10 +389,17 @@ class _LibraryPageState extends State<LibraryPage> {
 
 const mobileBridge = EchoLearnBridge();
 
-class ReaderPage extends StatelessWidget {
+class ReaderPage extends StatefulWidget {
   const ReaderPage({required this.document, super.key});
 
   final MobileDocument? document;
+
+  @override
+  State<ReaderPage> createState() => _ReaderPageState();
+}
+
+class _ReaderPageState extends State<ReaderPage> {
+  double speechRate = 1;
 
   @override
   Widget build(BuildContext context) {
@@ -319,18 +410,45 @@ class ReaderPage extends StatelessWidget {
         BridgeActionPanel(
           icon: Icons.volume_up_outlined,
           title: 'Read aloud',
-          body: document == null
+          body: widget.document == null
               ? 'Import a document to start listening.'
-              : 'Ready to read "${document!.title}" with built-in Android or iOS voices.',
+              : 'Ready to read "${widget.document!.title}" with built-in Android or iOS voices.',
           buttonLabel: 'Speak',
           onPressed: () => mobileBridge.speak(
-            document != null && document!.chunks.isNotEmpty
-                ? document!.chunks.first
+            widget.document != null && widget.document!.chunks.isNotEmpty
+                ? widget.document!.chunks.first
                 : 'EchoLearn mobile text to speech is connected.',
+            rate: speechRate,
           ),
         ),
-        if (document != null)
-          ...document!.chunks.take(4).map(
+        Card(
+          color: const Color(0xFF111827),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Speech speed',
+                    style: Theme.of(context).textTheme.titleMedium),
+                Slider(
+                  min: 0.5,
+                  max: 1.8,
+                  divisions: 13,
+                  value: speechRate,
+                  label: '${speechRate.toStringAsFixed(1)}x',
+                  onChanged: (value) => setState(() => speechRate = value),
+                ),
+                OutlinedButton.icon(
+                  onPressed: mobileBridge.stopSpeaking,
+                  icon: const Icon(Icons.stop_circle_outlined),
+                  label: const Text('Stop reading'),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (widget.document != null)
+          ...widget.document!.chunks.take(4).map(
                 (chunk) => ActionPanel(
                   icon: Icons.notes_outlined,
                   title: 'Document chunk',
@@ -377,7 +495,8 @@ class _TutorPageState extends State<TutorPage> {
     questionController.clear();
 
     if (widget.document == null) {
-      widget.onMessage('EchoLearn: Import a document first so I can stay focused on its topic.');
+      widget.onMessage(
+          'EchoLearn: Import a document first so I can stay focused on its topic.');
       return;
     }
 
@@ -389,7 +508,8 @@ class _TutorPageState extends State<TutorPage> {
       );
       widget.onMessage('EchoLearn: ${response.answer}');
     } catch (error) {
-      widget.onMessage('EchoLearn: ${localTopicAnswer(widget.document!, question, widget.learnerAge)}');
+      widget.onMessage(
+          'EchoLearn: ${localTopicAnswer(widget.document!, question, widget.learnerAge)}');
     }
   }
 
@@ -397,7 +517,8 @@ class _TutorPageState extends State<TutorPage> {
   Widget build(BuildContext context) {
     return PageFrame(
       title: 'AI Tutor',
-      subtitle: 'Ask questions that stay focused on the uploaded document topic.',
+      subtitle:
+          'Ask questions that stay focused on the uploaded document topic.',
       children: [
         Card(
           color: const Color(0xFF111827),
@@ -428,9 +549,13 @@ class _TutorPageState extends State<TutorPage> {
         ),
         ...widget.messages.reversed.take(8).map(
               (message) => ActionPanel(
-                icon: message.startsWith('You:') ? Icons.person_outline : Icons.psychology_alt_outlined,
+                icon: message.startsWith('You:')
+                    ? Icons.person_outline
+                    : Icons.psychology_alt_outlined,
                 title: message.startsWith('You:') ? 'You' : 'EchoLearn',
-                body: message.replaceFirst('You: ', '').replaceFirst('EchoLearn: ', ''),
+                body: message
+                    .replaceFirst('You: ', '')
+                    .replaceFirst('EchoLearn: ', ''),
               ),
             ),
         ActionPanel(
@@ -469,7 +594,8 @@ class StudyPage extends StatelessWidget {
             (chunk) => ActionPanel(
               icon: Icons.quiz_outlined,
               title: 'Review prompt',
-              body: 'Explain this idea in your own words: ${trimText(chunk, 160)}',
+              body:
+                  'Explain this idea in your own words: ${trimText(chunk, 160)}',
             ),
           ),
         MetricGrid(
@@ -512,11 +638,13 @@ class SettingsPage extends StatelessWidget {
                 border: OutlineInputBorder(),
               ),
               controller: TextEditingController(text: learnerAge)
-                ..selection = TextSelection.collapsed(offset: learnerAge.length),
+                ..selection =
+                    TextSelection.collapsed(offset: learnerAge.length),
               onChanged: onLearnerAgeChanged,
             ),
           ),
         ),
+        const SecureApiKeyPanel(),
         const SettingsTile(title: 'Telemetry', value: 'Disabled'),
         const SettingsTile(title: 'AI mode', value: 'Topic-focused'),
         const SettingsTile(title: 'Cloud keys', value: 'User-owned only'),
@@ -524,6 +652,137 @@ class SettingsPage extends StatelessWidget {
         const SettingsTile(title: 'Storage', value: 'Local device'),
         const SettingsTile(title: 'Theme', value: 'Dark'),
       ],
+    );
+  }
+}
+
+class SecureApiKeyPanel extends StatefulWidget {
+  const SecureApiKeyPanel({super.key});
+
+  @override
+  State<SecureApiKeyPanel> createState() => _SecureApiKeyPanelState();
+}
+
+class _SecureApiKeyPanelState extends State<SecureApiKeyPanel> {
+  final keyController = TextEditingController();
+  final providers = const ['OpenAI', 'Claude', 'Gemini', 'Groq', 'OpenRouter'];
+  String provider = 'OpenAI';
+  String status = 'No key checked yet.';
+  bool saving = false;
+
+  @override
+  void dispose() {
+    keyController.dispose();
+    super.dispose();
+  }
+
+  Future<void> saveKey() async {
+    final key = keyController.text.trim();
+    if (key.isEmpty) {
+      setState(() => status = 'Paste a key before saving.');
+      return;
+    }
+    setState(() => saving = true);
+    try {
+      await mobileBridge.saveApiKey(provider: provider, key: key);
+      keyController.clear();
+      setState(
+          () => status = '$provider key is saved securely on this device.');
+    } catch (error) {
+      setState(
+          () => status = 'Secure key storage is not available here: $error');
+    } finally {
+      setState(() => saving = false);
+    }
+  }
+
+  Future<void> checkKey() async {
+    try {
+      final exists = await mobileBridge.hasApiKey(provider);
+      setState(() => status =
+          exists ? '$provider key is saved.' : 'No $provider key saved.');
+    } catch (error) {
+      setState(() => status = 'Secure key check is not available here: $error');
+    }
+  }
+
+  Future<void> deleteKey() async {
+    try {
+      await mobileBridge.deleteApiKey(provider);
+      setState(() => status = '$provider key removed from this device.');
+    } catch (error) {
+      setState(
+          () => status = 'Secure key removal is not available here: $error');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: const Color(0xFF111827),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Personal AI key',
+                style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: provider,
+              decoration: const InputDecoration(
+                labelText: 'Provider',
+                border: OutlineInputBorder(),
+              ),
+              items: providers
+                  .map((item) =>
+                      DropdownMenuItem(value: item, child: Text(item)))
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    provider = value;
+                    status = 'No key checked yet.';
+                  });
+                }
+              },
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: keyController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'API key',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.icon(
+                  onPressed: saving ? null : saveKey,
+                  icon: const Icon(Icons.lock_outline),
+                  label: const Text('Save key'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: checkKey,
+                  icon: const Icon(Icons.verified_user_outlined),
+                  label: const Text('Check'),
+                ),
+                TextButton.icon(
+                  onPressed: deleteKey,
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text('Remove'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(status),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -642,7 +901,8 @@ class BridgeActionPanel extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title, style: Theme.of(context).textTheme.titleMedium),
+                      Text(title,
+                          style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 6),
                       Text(body),
                     ],
@@ -764,13 +1024,16 @@ class SettingsTile extends StatelessWidget {
   }
 }
 
-String localTopicAnswer(MobileDocument document, String question, String learnerAge) {
+String localTopicAnswer(
+    MobileDocument document, String question, String learnerAge) {
   final questionTerms = usefulTerms(question);
   final scored = document.chunks
       .map(
         (chunk) => (
           chunk: chunk,
-          score: questionTerms.where((term) => usefulTerms(chunk).contains(term)).length,
+          score: questionTerms
+              .where((term) => usefulTerms(chunk).contains(term))
+              .length,
         ),
       )
       .where((item) => item.score > 0)

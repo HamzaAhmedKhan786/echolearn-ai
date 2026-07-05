@@ -24,6 +24,10 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>EchoLearn uses the microphone when you ask questions by voice.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>EchoLearn uses speech recognition when you ask questions by voice.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

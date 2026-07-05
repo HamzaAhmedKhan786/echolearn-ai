@@ -7,17 +7,22 @@ class EchoLearnBridge {
   final MethodChannel _channel;
 
   Future<ImportedDocument?> pickAndImportDocument() {
-    return _invokeMap('pickAndImportDocument').then(
-      (value) => value == null ? null : ImportedDocument.fromMap(value),
-    );
+    return _invokeMap('pickAndImportDocument')
+        .then((value) => value == null ? null : ImportedDocument.fromMap(value))
+        .onError<MissingPluginException>((_, __) => null);
   }
 
-  Future<void> speak(String text) {
-    return _channel.invokeMethod<void>('speak', {'text': text});
+  Future<void> speak(String text, {double rate = 1.0}) {
+    return _channel.invokeMethod<void>('speak', {
+      'text': text,
+      'rate': rate,
+    }).onError<MissingPluginException>((_, __) => null);
   }
 
   Future<void> stopSpeaking() {
-    return _channel.invokeMethod<void>('stopSpeaking');
+    return _channel
+        .invokeMethod<void>('stopSpeaking')
+        .onError<MissingPluginException>((_, __) => null);
   }
 
   Future<void> saveApiKey({
@@ -31,13 +36,25 @@ class EchoLearnBridge {
   }
 
   Future<bool> hasApiKey(String provider) {
-    return _channel.invokeMethod<bool>('hasApiKey', {'provider': provider}).then(
-          (value) => value ?? false,
-        );
+    return _channel
+        .invokeMethod<bool>('hasApiKey', {'provider': provider}).then(
+      (value) => value ?? false,
+    );
   }
 
   Future<void> deleteApiKey(String provider) {
     return _channel.invokeMethod<void>('deleteApiKey', {'provider': provider});
+  }
+
+  Future<void> saveMobileState(String state) {
+    return _channel.invokeMethod<void>('saveMobileState',
+        {'state': state}).onError<MissingPluginException>((_, __) => null);
+  }
+
+  Future<String?> loadMobileState() {
+    return _channel
+        .invokeMethod<String>('loadMobileState')
+        .onError<MissingPluginException>((_, __) => null);
   }
 
   Future<TutorAnswer> askQuestion({
@@ -56,7 +73,8 @@ class EchoLearnBridge {
     String method, [
     Map<String, Object?> arguments = const {},
   ]) async {
-    final result = await _channel.invokeMapMethod<String, Object?>(method, arguments);
+    final result =
+        await _channel.invokeMapMethod<String, Object?>(method, arguments);
     return result == null ? null : Map<String, Object?>.from(result);
   }
 }
