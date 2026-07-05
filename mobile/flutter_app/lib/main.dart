@@ -49,14 +49,10 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int selectedIndex = 0;
-
-  static const pages = [
-    LibraryPage(),
-    ReaderPage(),
-    TutorPage(),
-    StudyPage(),
-    SettingsPage(),
-  ];
+  final List<MobileDocument> documents = [];
+  final List<String> chatMessages = ['Import a document, then ask a question about its topic.'];
+  MobileDocument? selectedDocument;
+  String learnerAge = '';
 
   @override
   void initState() {
@@ -104,6 +100,42 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    final pages = [
+      LibraryPage(
+        documents: documents,
+        selectedDocument: selectedDocument,
+        onImported: (document) {
+          setState(() {
+            documents.removeWhere((item) => item.id == document.id);
+            documents.insert(0, document);
+            selectedDocument = document;
+            chatMessages
+              ..clear()
+              ..add('Document "${document.title}" is ready for reading and topic-focused questions.');
+          });
+        },
+        onSelected: (document) {
+          setState(() => selectedDocument = document);
+        },
+      ),
+      ReaderPage(document: selectedDocument),
+      TutorPage(
+        document: selectedDocument,
+        learnerAge: learnerAge,
+        messages: chatMessages,
+        onMessage: (message) {
+          setState(() => chatMessages.add(message));
+        },
+      ),
+      StudyPage(document: selectedDocument),
+      SettingsPage(
+        learnerAge: learnerAge,
+        onLearnerAgeChanged: (value) {
+          setState(() => learnerAge = value);
+        },
+      ),
+    ];
+
     return Scaffold(
       appBar: AppBar(
         title: const Row(
@@ -166,8 +198,33 @@ class _AppShellState extends State<AppShell> {
   }
 }
 
+class MobileDocument {
+  const MobileDocument({
+    required this.id,
+    required this.title,
+    required this.chunks,
+  });
+
+  final String id;
+  final String title;
+  final List<String> chunks;
+
+  int get chunkCount => chunks.length;
+}
+
 class LibraryPage extends StatefulWidget {
-  const LibraryPage({super.key});
+  const LibraryPage({
+    required this.documents,
+    required this.selectedDocument,
+    required this.onImported,
+    required this.onSelected,
+    super.key,
+  });
+
+  final List<MobileDocument> documents;
+  final MobileDocument? selectedDocument;
+  final ValueChanged<MobileDocument> onImported;
+  final ValueChanged<MobileDocument> onSelected;
 
   @override
   State<LibraryPage> createState() => _LibraryPageState();
@@ -179,6 +236,17 @@ class _LibraryPageState extends State<LibraryPage> {
   Future<void> importDocument() async {
     try {
       final document = await mobileBridge.pickAndImportDocument();
+      if (document != null) {
+        widget.onImported(
+          MobileDocument(
+            id: document.id,
+            title: document.title,
+            chunks: document.chunks.isEmpty
+                ? ['${document.title} was imported. Native parser chunks will appear here when provided by the device bridge.']
+                : document.chunks,
+          ),
+        );
+      }
       setState(() {
         status = document == null
             ? 'Import cancelled.'
@@ -207,12 +275,27 @@ class _LibraryPageState extends State<LibraryPage> {
           title: 'Private local library',
           body: 'Imported documents are prepared for reading, listening, and topic-focused tutoring.',
         ),
-        const MetricGrid(
+        if (widget.documents.isNotEmpty)
+          ...widget.documents.map(
+            (document) => ActionPanel(
+              icon: Icons.description_outlined,
+              title: document.title,
+              body: '${document.chunkCount} chunks ready${widget.selectedDocument?.id == document.id ? ' - selected' : ''}',
+              trailing: TextButton(
+                onPressed: () => widget.onSelected(document),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        MetricGrid(
           items: [
-            MetricItem(label: 'Documents', value: '0'),
-            MetricItem(label: 'Ready chunks', value: '0'),
-            MetricItem(label: 'Chats saved', value: '0'),
-            MetricItem(label: 'Study items', value: '0'),
+            MetricItem(label: 'Documents', value: '${widget.documents.length}'),
+            MetricItem(
+              label: 'Ready chunks',
+              value: '${widget.documents.fold<int>(0, (total, doc) => total + doc.chunkCount)}',
+            ),
+            const MetricItem(label: 'Chats saved', value: 'Local'),
+            const MetricItem(label: 'Study items', value: 'Auto'),
           ],
         ),
       ],
@@ -223,7 +306,9 @@ class _LibraryPageState extends State<LibraryPage> {
 const mobileBridge = EchoLearnBridge();
 
 class ReaderPage extends StatelessWidget {
-  const ReaderPage({super.key});
+  const ReaderPage({required this.document, super.key});
+
+  final MobileDocument? document;
 
   @override
   Widget build(BuildContext context) {
@@ -234,35 +319,77 @@ class ReaderPage extends StatelessWidget {
         BridgeActionPanel(
           icon: Icons.volume_up_outlined,
           title: 'Read aloud',
-          body: 'Uses built-in Android or iOS voices so mobile reading stays light and on-device.',
+          body: document == null
+              ? 'Import a document to start listening.'
+              : 'Ready to read "${document!.title}" with built-in Android or iOS voices.',
           buttonLabel: 'Speak',
-          onPressed: () => mobileBridge.speak('EchoLearn mobile text to speech is connected.'),
+          onPressed: () => mobileBridge.speak(
+            document != null && document!.chunks.isNotEmpty
+                ? document!.chunks.first
+                : 'EchoLearn mobile text to speech is connected.',
+          ),
         ),
+        if (document != null)
+          ...document!.chunks.take(4).map(
+                (chunk) => ActionPanel(
+                  icon: Icons.notes_outlined,
+                  title: 'Document chunk',
+                  body: chunk,
+                ),
+              ),
       ],
     );
   }
 }
 
 class TutorPage extends StatefulWidget {
-  const TutorPage({super.key});
+  const TutorPage({
+    required this.document,
+    required this.learnerAge,
+    required this.messages,
+    required this.onMessage,
+    super.key,
+  });
+
+  final MobileDocument? document;
+  final String learnerAge;
+  final List<String> messages;
+  final ValueChanged<String> onMessage;
 
   @override
   State<TutorPage> createState() => _TutorPageState();
 }
 
 class _TutorPageState extends State<TutorPage> {
-  String answer = 'Ask a question about the uploaded document topic.';
+  final questionController = TextEditingController();
+
+  @override
+  void dispose() {
+    questionController.dispose();
+    super.dispose();
+  }
 
   Future<void> askQuestion() async {
+    final question = questionController.text.trim();
+    if (question.isEmpty) return;
+
+    widget.onMessage('You: $question');
+    questionController.clear();
+
+    if (widget.document == null) {
+      widget.onMessage('EchoLearn: Import a document first so I can stay focused on its topic.');
+      return;
+    }
+
     try {
       final response = await mobileBridge.askQuestion(
-        documentId: 'mobile-preview',
-        question: 'What is EchoLearn?',
+        documentId: widget.document!.id,
+        question: question,
         scope: 'Whole document',
       );
-      setState(() => answer = response.answer);
+      widget.onMessage('EchoLearn: ${response.answer}');
     } catch (error) {
-      setState(() => answer = 'Tutor is not available on this device yet: $error');
+      widget.onMessage('EchoLearn: ${localTopicAnswer(widget.document!, question, widget.learnerAge)}');
     }
   }
 
@@ -272,12 +399,46 @@ class _TutorPageState extends State<TutorPage> {
       title: 'AI Tutor',
       subtitle: 'Ask questions that stay focused on the uploaded document topic.',
       children: [
-        BridgeActionPanel(
+        Card(
+          color: const Color(0xFF111827),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              children: [
+                TextField(
+                  controller: questionController,
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Ask about the document',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton(
+                    onPressed: askQuestion,
+                    child: const Text('Ask'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        ...widget.messages.reversed.take(8).map(
+              (message) => ActionPanel(
+                icon: message.startsWith('You:') ? Icons.person_outline : Icons.psychology_alt_outlined,
+                title: message.startsWith('You:') ? 'You' : 'EchoLearn',
+                body: message.replaceFirst('You: ', '').replaceFirst('EchoLearn: ', ''),
+              ),
+            ),
+        ActionPanel(
           icon: Icons.psychology_alt_outlined,
-          title: 'Topic-focused answers',
-          body: answer,
-          buttonLabel: 'Ask',
-          onPressed: askQuestion,
+          title: 'Topic rule',
+          body: widget.document == null
+              ? 'Import a document before asking.'
+              : 'Answers must strongly match "${widget.document!.title}".',
         ),
       ],
     );
@@ -285,20 +446,38 @@ class _TutorPageState extends State<TutorPage> {
 }
 
 class StudyPage extends StatelessWidget {
-  const StudyPage({super.key});
+  const StudyPage({required this.document, super.key});
+
+  final MobileDocument? document;
 
   @override
   Widget build(BuildContext context) {
-    return const PageFrame(
+    final items = document?.chunks.take(4).toList() ?? const <String>[];
+
+    return PageFrame(
       title: 'Study',
       subtitle: 'Generate flashcards, quizzes, notes, and summaries.',
       children: [
+        if (items.isEmpty)
+          const ActionPanel(
+            icon: Icons.school_outlined,
+            title: 'No study material yet',
+            body: 'Import a document to create review prompts.',
+          )
+        else
+          ...items.map(
+            (chunk) => ActionPanel(
+              icon: Icons.quiz_outlined,
+              title: 'Review prompt',
+              body: 'Explain this idea in your own words: ${trimText(chunk, 160)}',
+            ),
+          ),
         MetricGrid(
           items: [
-            MetricItem(label: 'Flashcards', value: '0'),
-            MetricItem(label: 'Quizzes', value: '0'),
-            MetricItem(label: 'Notes', value: '0'),
-            MetricItem(label: 'Reviews', value: '0'),
+            MetricItem(label: 'Flashcards', value: '${items.length}'),
+            MetricItem(label: 'Quizzes', value: '${items.length}'),
+            const MetricItem(label: 'Notes', value: 'Local'),
+            const MetricItem(label: 'Reviews', value: 'Ready'),
           ],
         ),
       ],
@@ -307,20 +486,43 @@ class StudyPage extends StatelessWidget {
 }
 
 class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key});
+  const SettingsPage({
+    required this.learnerAge,
+    required this.onLearnerAgeChanged,
+    super.key,
+  });
+
+  final String learnerAge;
+  final ValueChanged<String> onLearnerAgeChanged;
 
   @override
   Widget build(BuildContext context) {
-    return const PageFrame(
+    return PageFrame(
       title: 'Settings',
       subtitle: 'Local-first privacy and model configuration.',
       children: [
-        SettingsTile(title: 'Telemetry', value: 'Disabled'),
-        SettingsTile(title: 'AI mode', value: 'Topic-focused'),
-        SettingsTile(title: 'Cloud keys', value: 'User-owned only'),
-        SettingsTile(title: 'Mobile voice', value: 'Built-in TTS'),
-        SettingsTile(title: 'Storage', value: 'Local encrypted'),
-        SettingsTile(title: 'Theme', value: 'Dark'),
+        Card(
+          color: const Color(0xFF111827),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: TextField(
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Learner age',
+                border: OutlineInputBorder(),
+              ),
+              controller: TextEditingController(text: learnerAge)
+                ..selection = TextSelection.collapsed(offset: learnerAge.length),
+              onChanged: onLearnerAgeChanged,
+            ),
+          ),
+        ),
+        const SettingsTile(title: 'Telemetry', value: 'Disabled'),
+        const SettingsTile(title: 'AI mode', value: 'Topic-focused'),
+        const SettingsTile(title: 'Cloud keys', value: 'User-owned only'),
+        const SettingsTile(title: 'Mobile voice', value: 'Built-in TTS'),
+        const SettingsTile(title: 'Storage', value: 'Local device'),
+        const SettingsTile(title: 'Theme', value: 'Dark'),
       ],
     );
   }
@@ -365,12 +567,14 @@ class ActionPanel extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.body,
+    this.trailing,
     super.key,
   });
 
   final IconData icon;
   final String title;
   final String body;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -393,6 +597,10 @@ class ActionPanel extends StatelessWidget {
                 ],
               ),
             ),
+            if (trailing != null) ...[
+              const SizedBox(width: 10),
+              trailing!,
+            ],
           ],
         ),
       ),
@@ -554,4 +762,55 @@ class SettingsTile extends StatelessWidget {
       ),
     );
   }
+}
+
+String localTopicAnswer(MobileDocument document, String question, String learnerAge) {
+  final questionTerms = usefulTerms(question);
+  final scored = document.chunks
+      .map(
+        (chunk) => (
+          chunk: chunk,
+          score: questionTerms.where((term) => usefulTerms(chunk).contains(term)).length,
+        ),
+      )
+      .where((item) => item.score > 0)
+      .toList()
+    ..sort((left, right) => right.score.compareTo(left.score));
+
+  if (questionTerms.isEmpty || scored.isEmpty) {
+    return 'This question does not have a strong match with the uploaded document. I can help when the question stays on the same subject or topic as the document.';
+  }
+
+  final ageText = learnerAge.trim().isEmpty
+      ? 'clearly'
+      : 'in a way that fits a ${learnerAge.trim()} year old learner';
+  return 'This question matches the document topic. I will explain it $ageText: ${trimText(scored.first.chunk, 420)}';
+}
+
+Set<String> usefulTerms(String text) {
+  const stopWords = {
+    'the',
+    'and',
+    'for',
+    'with',
+    'from',
+    'this',
+    'that',
+    'what',
+    'how',
+    'why',
+    'can',
+    'you',
+    'are',
+  };
+
+  return text
+      .toLowerCase()
+      .split(RegExp(r'[^a-z0-9]+'))
+      .where((term) => term.length > 2 && !stopWords.contains(term))
+      .toSet();
+}
+
+String trimText(String text, int maxLength) {
+  return text.length <= maxLength ? text : '${text.substring(0, maxLength)}...';
 }

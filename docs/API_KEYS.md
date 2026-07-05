@@ -48,4 +48,19 @@ Do not hardcode API keys in a mobile app. For production mobile:
 - Or route requests through a user-owned backend.
 - Or use local mobile models when the model manager is implemented.
 
-For now, the Flutter UI can expose provider choices and bridge smoke tests, while secure mobile key storage is a remaining implementation task.
+For now, the Flutter UI exposes the product flow and local topic fallback. Secure mobile key storage is still a native implementation task.
+
+## Production Key Storage Contract
+
+Desktop:
+
+- Prefer OS secure storage before accepting raw API keys in app files.
+- Keep the current environment-variable flow as a safe development fallback.
+- Never write real keys into `config/runtime-defaults.json`.
+
+Mobile:
+
+- Android: store user API keys in Android Keystore-backed encrypted storage.
+- iOS: store user API keys in Keychain.
+- Flutter should call a native bridge such as `saveApiKey`, `getApiKeyStatus`, and `deleteApiKey`.
+- UI should display whether a key exists, not the key value.

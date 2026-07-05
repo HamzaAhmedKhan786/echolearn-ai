@@ -20,6 +20,26 @@ class EchoLearnBridge {
     return _channel.invokeMethod<void>('stopSpeaking');
   }
 
+  Future<void> saveApiKey({
+    required String provider,
+    required String key,
+  }) {
+    return _channel.invokeMethod<void>('saveApiKey', {
+      'provider': provider,
+      'key': key,
+    });
+  }
+
+  Future<bool> hasApiKey(String provider) {
+    return _channel.invokeMethod<bool>('hasApiKey', {'provider': provider}).then(
+          (value) => value ?? false,
+        );
+  }
+
+  Future<void> deleteApiKey(String provider) {
+    return _channel.invokeMethod<void>('deleteApiKey', {'provider': provider});
+  }
+
   Future<TutorAnswer> askQuestion({
     required String documentId,
     required String question,
@@ -46,17 +66,24 @@ class ImportedDocument {
     required this.id,
     required this.title,
     required this.chunkCount,
+    required this.chunks,
   });
 
   final String id;
   final String title;
   final int chunkCount;
+  final List<String> chunks;
 
   factory ImportedDocument.fromMap(Map<String, Object?> map) {
+    final rawChunks = map['chunks'];
+    final chunks = rawChunks is List
+        ? rawChunks.map((item) => item.toString()).toList()
+        : const <String>[];
     return ImportedDocument(
       id: map['id'] as String? ?? '',
       title: map['title'] as String? ?? 'Untitled',
-      chunkCount: map['chunkCount'] as int? ?? 0,
+      chunkCount: map['chunkCount'] as int? ?? chunks.length,
+      chunks: chunks,
     );
   }
 }
