@@ -30,6 +30,7 @@ EchoLearn AI is a local-first study app for reading documents aloud and asking t
 - [[Reusable Fixes]]
 - [[Device Preview]]
 - [[Obsidian Usage]]
+- [[Release Builds]]
 
 ## Current Direction
 
