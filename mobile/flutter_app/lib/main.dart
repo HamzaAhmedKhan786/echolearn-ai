@@ -68,28 +68,27 @@ class _AppShellState extends State<AppShell> {
     return showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('EchoLearn first-run guide'),
+        title: const Text('Welcome to EchoLearn'),
         content: const SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Mobile preview status'),
+              Text('How to use EchoLearn'),
               SizedBox(height: 8),
-              Text('• Device Preview is enabled for phone/tablet frames.'),
-              Text('• Native bridge smoke tests are connected on Windows, Android, and iOS.'),
-              Text('• Real mobile document import/storage is still pending.'),
+              Text('- Import a PDF, Word, EPUB, or text document.'),
+              Text('- Listen with built-in phone voices.'),
+              Text('- Ask questions that stay on the document topic.'),
               SizedBox(height: 14),
               Text('AI choices'),
               SizedBox(height: 8),
-              Text('• Use a personal API key to avoid downloading phone models.'),
-              Text('• Or connect later to desktop Ollama on your local network.'),
-              Text('• On-phone LLM downloads need a future mobile model manager and small quantized models.'),
+              Text('- Use your own API key for hosted AI.'),
+              Text('- Use local AI when an on-device model is available.'),
+              Text('- EchoLearn can explain beyond the file only when the topic still matches.'),
               SizedBox(height: 14),
-              Text('Downloads'),
+              Text('Privacy'),
               SizedBox(height: 8),
-              Text('• Android Studio/platform tools for emulator or adb.'),
-              Text('• Piper voice is only needed for desktop Piper TTS.'),
+              Text('- Documents and chats stay on your device unless you choose an external AI provider.'),
             ],
           ),
         ),
@@ -116,22 +115,15 @@ class _AppShellState extends State<AppShell> {
         ),
         actions: [
           IconButton(
-            tooltip: 'First-run guide',
+            tooltip: 'Guide',
             icon: const Icon(Icons.help_outline),
             onPressed: showStartupGuide,
           ),
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
+          const Padding(
+            padding: EdgeInsets.only(right: 16),
             child: Chip(
-              label: const Text('Offline'),
-              avatar: Container(
-                width: 8,
-                height: 8,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF22C55E),
-                  shape: BoxShape.circle,
-                ),
-              ),
+              label: Text('Offline'),
+              avatar: Icon(Icons.lock_outline, size: 16),
             ),
           ),
         ],
@@ -182,7 +174,7 @@ class LibraryPage extends StatefulWidget {
 }
 
 class _LibraryPageState extends State<LibraryPage> {
-  String status = 'No mobile document imported yet.';
+  String status = 'No document imported yet.';
 
   Future<void> importDocument() async {
     try {
@@ -193,7 +185,7 @@ class _LibraryPageState extends State<LibraryPage> {
             : 'Imported ${document.title} with ${document.chunkCount} chunks.';
       });
     } catch (error) {
-      setState(() => status = 'Import bridge failed: $error');
+      setState(() => status = 'Import is not available on this device yet: $error');
     }
   }
 
@@ -201,7 +193,7 @@ class _LibraryPageState extends State<LibraryPage> {
   Widget build(BuildContext context) {
     return PageFrame(
       title: 'Library',
-      subtitle: 'Import private PDF, DOCX, EPUB, and text documents.',
+      subtitle: 'Import private PDF, Word, EPUB, and text documents.',
       children: [
         BridgeActionPanel(
           icon: Icons.upload_file,
@@ -211,15 +203,15 @@ class _LibraryPageState extends State<LibraryPage> {
           onPressed: importDocument,
         ),
         const ActionPanel(
-          icon: Icons.integration_instructions,
-          title: 'Native bridge contract',
-          body: 'MethodChannel echolearn.ai/native is defined for import, TTS, and grounded Q&A.',
+          icon: Icons.lock_outline,
+          title: 'Private local library',
+          body: 'Imported documents are prepared for reading, listening, and topic-focused tutoring.',
         ),
         const MetricGrid(
           items: [
             MetricItem(label: 'Documents', value: '0'),
-            MetricItem(label: 'Indexed chunks', value: '0'),
-            MetricItem(label: 'Models ready', value: '0'),
+            MetricItem(label: 'Ready chunks', value: '0'),
+            MetricItem(label: 'Chats saved', value: '0'),
             MetricItem(label: 'Study items', value: '0'),
           ],
         ),
@@ -240,9 +232,9 @@ class ReaderPage extends StatelessWidget {
       subtitle: 'Read, listen, highlight, and navigate imported content.',
       children: [
         BridgeActionPanel(
-          icon: Icons.menu_book,
-          title: 'Native TTS smoke test',
-          body: 'Uses Android TextToSpeech or iOS AVSpeech through the MethodChannel.',
+          icon: Icons.volume_up_outlined,
+          title: 'Read aloud',
+          body: 'Uses built-in Android or iOS voices so mobile reading stays light and on-device.',
           buttonLabel: 'Speak',
           onPressed: () => mobileBridge.speak('EchoLearn mobile text to speech is connected.'),
         ),
@@ -259,7 +251,7 @@ class TutorPage extends StatefulWidget {
 }
 
 class _TutorPageState extends State<TutorPage> {
-  String answer = 'Ask a mobile bridge smoke-test question.';
+  String answer = 'Ask a question about the uploaded document topic.';
 
   Future<void> askQuestion() async {
     try {
@@ -270,7 +262,7 @@ class _TutorPageState extends State<TutorPage> {
       );
       setState(() => answer = response.answer);
     } catch (error) {
-      setState(() => answer = 'Ask bridge failed: $error');
+      setState(() => answer = 'Tutor is not available on this device yet: $error');
     }
   }
 
@@ -278,11 +270,11 @@ class _TutorPageState extends State<TutorPage> {
   Widget build(BuildContext context) {
     return PageFrame(
       title: 'AI Tutor',
-      subtitle: 'Ask scoped questions grounded in imported documents.',
+      subtitle: 'Ask questions that stay focused on the uploaded document topic.',
       children: [
         BridgeActionPanel(
           icon: Icons.psychology_alt_outlined,
-          title: 'Grounded answers',
+          title: 'Topic-focused answers',
           body: answer,
           buttonLabel: 'Ask',
           onPressed: askQuestion,
@@ -324,9 +316,9 @@ class SettingsPage extends StatelessWidget {
       subtitle: 'Local-first privacy and model configuration.',
       children: [
         SettingsTile(title: 'Telemetry', value: 'Disabled'),
-        SettingsTile(title: 'AI mode', value: 'Offline'),
+        SettingsTile(title: 'AI mode', value: 'Topic-focused'),
         SettingsTile(title: 'Cloud keys', value: 'User-owned only'),
-        SettingsTile(title: 'Mobile LLM', value: 'Small model manager planned'),
+        SettingsTile(title: 'Mobile voice', value: 'Built-in TTS'),
         SettingsTile(title: 'Storage', value: 'Local encrypted'),
         SettingsTile(title: 'Theme', value: 'Dark'),
       ],

@@ -125,7 +125,7 @@ function App() {
   const [fontScale, setFontScale] = useState(1);
   const [studyItems, setStudyItems] = useState<StudyItem[]>([]);
   const [runtimeConfig, setRuntimeConfig] = useState<RuntimeConfig>(defaultRuntimeConfig);
-  const [modelStatus, setModelStatus] = useState("Configure local model paths to enable LLM synthesis and Piper TTS.");
+  const [modelStatus, setModelStatus] = useState("Configure local model paths to enable topic-focused answers and Piper TTS.");
   const [ttsStatus, setTtsStatus] = useState<TtsStatus | null>(null);
   const [ttsValidationStatus, setTtsValidationStatus] = useState("");
   const [ttsValidationBusy, setTtsValidationBusy] = useState(false);
@@ -358,7 +358,7 @@ function App() {
     try {
       const saved = await invoke<RuntimeConfig>("save_runtime_config", { config });
       setRuntimeConfig(saved);
-      setModelStatus("Runtime paths saved. Rebuild the vector index after changing embedding/index settings.");
+      setModelStatus("Runtime paths saved locally. Rebuild the vector export after changing index settings.");
       await refreshTtsStatus();
     } catch (error) {
       setModelStatus(`Runtime paths are kept in this preview. Tauri save failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -387,7 +387,7 @@ function App() {
 
   async function handleBuildIndex() {
     if (!selectedDocument) {
-      setModelStatus("Open a saved PostgreSQL document before rebuilding the vector index.");
+      setModelStatus("Import or open a document before rebuilding the vector export.");
       return;
     }
 
@@ -1294,7 +1294,7 @@ function ModelsPage({
 
         <div className="runtimeActions">
           <button onClick={() => onSave(draft)}>Save paths</button>
-          <button className="secondary" onClick={onBuildIndex}>Rebuild vector index</button>
+          <button className="secondary" onClick={onBuildIndex}>Rebuild vector export</button>
         </div>
 
         <p className="modelStatus">{status}</p>
@@ -1562,7 +1562,7 @@ function pageSubtitle(page: string) {
     "AI Tutor": "Ask questions from selected context only.",
     Flashcards: "Generate review cards from document scope.",
     Quizzes: "Create practice questions from selected context.",
-    Models: "Manage offline AI models and vector indexes.",
+    Models: "Manage offline AI models, voices, and vector exports.",
     "Get Started": "Import a document, choose AI, and set reading preferences.",
     Settings: "Configure privacy, storage, and AI behavior.",
   };

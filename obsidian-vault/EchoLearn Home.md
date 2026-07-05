@@ -1,25 +1,36 @@
 # EchoLearn Home
 
-Use this note as the vault map.
+EchoLearn AI is a local-first study app for reading documents aloud and asking topic-focused questions while learning.
 
-## Start Here
+## Demo Story
 
-- [[Setup Checklist]]
+1. Import a PDF, Word, EPUB, or text document.
+2. EchoLearn extracts readable text and creates local chunks.
+3. The reader can speak the document with built-in TTS or Piper on desktop.
+4. The user can ask questions while studying.
+5. EchoLearn checks whether the question matches the document topic.
+6. If the topic matches, EchoLearn can explain in simpler language for the learner age.
+7. If the topic does not match, EchoLearn refuses the topic switch.
+8. The chat is saved locally and can be exported as PDF.
+
+## Product Notes
+
 - [[Desktop App]]
 - [[Mobile App]]
-- [[Runtime Setup]]
 - [[Document Pipeline]]
-- [[Device Preview]]
+- [[Runtime Setup]]
+- [[API Keys]]
+- [[Mobile LLM Plan]]
+
+## Demo And Delivery Notes
+
+- [[Setup Checklist]]
 - [[Testing Notes]]
 - [[Error Log]]
 - [[Reusable Fixes]]
-- [[API Keys]]
-- [[Mobile LLM Plan]]
+- [[Device Preview]]
 - [[Obsidian Usage]]
 
-## Main Project Docs
+## Current Direction
 
-- Setup downloads: `../docs/SETUP_AND_DOWNLOADS.md`
-- Testing guide: `../docs/TESTING.md`
-- API keys: `../docs/API_KEYS.md`
-- Obsidian setup: `../docs/OBSIDIAN.md`
+PostgreSQL is no longer part of the normal user flow. EchoLearn stores the desktop library and runtime settings locally so users can open the app and start studying without Docker, a database server, or developer setup.

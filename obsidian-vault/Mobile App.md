@@ -7,19 +7,28 @@ Related:
 - [[Device Preview]]
 - [[Testing Notes]]
 
-The mobile app is Flutter.
+The mobile app is Flutter with Device Preview enabled for Windows development.
 
-Current status:
+## Product Flow
+
+- Import a document.
+- Read and listen with built-in Android/iOS TTS.
+- Ask topic-focused questions.
+- Save chat history locally.
+- Use user-owned API keys or future lightweight on-device models.
+
+## Current Status
 
 - Bottom navigation shell is built.
-- Android/iOS native bridge is connected for import, TTS, and Q&A smoke tests.
-- Windows native bridge is connected for preview smoke tests.
-- Native TTS uses Android TextToSpeech and iOS AVSpeech.
-- Windows preview uses a simple bridge response and system beep, not real mobile TTS.
-- Device Preview is enabled for Windows development.
+- Product-facing guide is in place.
+- Android/iOS/Windows bridge contract exists.
+- Native TTS bridge path exists.
+- Device Preview is enabled.
 
-Remaining:
+## Remaining Mobile Work
 
-- Real mobile document picker/parser.
-- Secure API key storage.
-- Mobile model manager for small on-device models.
+- Real document picker and parser.
+- Local mobile storage for documents/chats/settings.
+- Secure key storage.
+- Real mobile Q&A bridge connected to local chunks.
+- Play/pause/speed controls for native TTS.

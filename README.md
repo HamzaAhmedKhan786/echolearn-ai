@@ -117,7 +117,7 @@ Features:
 
 * Offline AI inference
 * Local embeddings
-* Local vector database
+* Local vector exports
 * Local document storage
 * Optional encryption
 * Optional biometric authentication
@@ -219,7 +219,7 @@ Features:
 
 ## Storage
 
-* PostgreSQL
+* Local app storage
 * SQLite reference schema for future embedded mode
 * Drift
 * Hive
@@ -285,23 +285,14 @@ npm run dev
 
 Open `http://localhost:5173/`. This browser preview can import PDF, DOCX, EPUB, TXT, Markdown, CSV, JSON, HTML, and XML files, then chunk and query the current document in memory.
 
-## Full desktop app with PostgreSQL
-
-Start PostgreSQL first. With Docker Desktop running:
+## Full desktop app
 
 ```powershell
 cd C:\Users\DELL\Documents\Projects\Gen-AI\echolearn-ai
-docker compose up -d postgres
 .\scripts\dev-tauri.ps1
 ```
 
-With your own PostgreSQL server:
-
-```powershell
-cd C:\Users\DELL\Documents\Projects\Gen-AI\echolearn-ai
-$env:DATABASE_URL="postgres://USER:PASSWORD@localhost:5432/echolearn"
-.\scripts\dev-tauri.ps1
-```
+The desktop app stores imported documents, chunks, runtime settings, and vector exports locally. Normal users do not need PostgreSQL, Docker, or a `.env` file.
 
 ## Local AI and TTS paths
 
@@ -315,7 +306,7 @@ In the app, open `Models` and set:
 * `Piper voice model`: path to a Piper `.onnx` voice
 * `FAISS export directory`: folder where EchoLearn writes JSONL vector index exports
 
-EchoLearn now creates deterministic 384-dimensional local embeddings for imported chunks, persists them in PostgreSQL, exports a FAISS-compatible JSONL file, retrieves by vector similarity plus keyword score, and uses llama.cpp for final grounded synthesis when those paths are configured. Whisper is intentionally not part of this setup.
+EchoLearn creates deterministic 384-dimensional local vectors for imported chunks, exports a FAISS-compatible JSONL file, retrieves by vector similarity plus keyword score, and uses Ollama or llama.cpp for topic-focused synthesis when those paths are configured. Whisper is intentionally not part of this setup.
 
 ---
 
