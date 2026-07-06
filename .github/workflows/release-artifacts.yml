@@ -97,6 +97,9 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Ensure iOS project support files
+        run: flutter create --platforms=ios .
+
       - name: Install Flutter dependencies
         run: flutter pub get
 
