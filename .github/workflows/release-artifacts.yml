@@ -101,7 +101,9 @@ jobs:
         run: flutter create --platforms=ios .
 
       - name: Disable experimental Flutter Swift Package Manager
-        run: flutter config --no-enable-swift-package-manager
+        run: |
+          flutter config --no-enable-swift-package-manager
+          flutter config --list
 
       - name: Install Flutter dependencies
         run: flutter pub get
