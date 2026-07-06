@@ -95,10 +95,12 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           flutter-version: "3.24.5"
-          cache: true
+          channel: stable
+          cache: false
 
       - name: Disable experimental Flutter Swift Package Manager
         run: |
+          flutter --version
           flutter config --no-enable-swift-package-manager
           flutter config --list
 
@@ -110,10 +112,15 @@ jobs:
           test -f ios/Runner.xcodeproj/project.pbxproj
 
       - name: Install Flutter dependencies
-        run: flutter pub get
+        run: |
+          flutter config --no-enable-swift-package-manager
+          flutter pub get
 
       - name: Build iOS app without code signing
-        run: flutter build ios --release --no-codesign
+        run: |
+          flutter config --no-enable-swift-package-manager
+          flutter config --list
+          flutter build ios --release --no-codesign
 
       - name: Package iOS app artifact
         run: ditto -c -k --sequesterRsrc --keepParent build/ios/iphoneos/Runner.app build/ios/echolearn-ios-no-codesign.zip
