@@ -1,6 +1,10 @@
 # Release Builds
 
-EchoLearn release artifacts are built by GitHub Actions in `.github/workflows/release-artifacts.yml`.
+EchoLearn release artifacts are split between local Windows builds and GitHub Actions builds.
+
+- Build Android locally on Windows.
+- Build Windows desktop locally on Windows.
+- Use GitHub Actions for Linux desktop, macOS desktop, and iOS no-codesign artifacts.
 
 ## Build From GitHub
 
@@ -8,22 +12,20 @@ EchoLearn release artifacts are built by GitHub Actions in `.github/workflows/re
 2. Open GitHub Actions.
 3. Run `Release artifacts` manually, or push a version tag such as `v0.1.0`.
 4. Download artifacts from the workflow run:
-   - `echolearn-desktop-windows`
-   - `echolearn-android`
+   - `echolearn-desktop-linux`
+   - `echolearn-desktop-macos`
    - `echolearn-ios-no-codesign`
 
 ## Android Signing
 
-Without signing secrets, Android artifacts are test-signed with the debug key. That is fine for internal testing, but not for Play Store distribution.
+Local Android artifacts are test-signed with the debug key unless a release keystore is supplied through environment variables. That is fine for internal testing, but not for Play Store distribution.
 
-For production signing, add these repository secrets:
+For production signing, set these environment variables before the local build:
 
-- `ANDROID_KEYSTORE_BASE64`
+- `ANDROID_KEYSTORE_PATH`
 - `ANDROID_KEYSTORE_PASSWORD`
 - `ANDROID_KEY_ALIAS`
 - `ANDROID_KEY_PASSWORD`
-
-`ANDROID_KEYSTORE_BASE64` should be the base64 text of the upload keystore file.
 
 ## iOS Artifact
 

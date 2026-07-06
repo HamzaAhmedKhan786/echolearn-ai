@@ -9,7 +9,7 @@ Related:
 - [[Mobile Native Bridge]]
 - [[Local Storage]]
 
-Release artifacts are built through GitHub Actions.
+Release artifacts are split between local Windows builds and GitHub Actions.
 
 ## Workflow
 
@@ -17,8 +17,8 @@ Use `.github/workflows/release-artifacts.yml`.
 
 It builds:
 
-- Windows desktop Tauri bundle.
-- Android APK and AAB.
+- Linux desktop Tauri bundle.
+- macOS desktop Tauri bundle.
 - iOS no-codesign app zip on a macOS runner.
 
 ## How To Run
@@ -34,6 +34,8 @@ git push origin v0.1.0
 
 ## Notes
 
-- Android artifacts are debug-signed for internal testing unless repository signing secrets are added.
+- Android APK/AAB should be built locally on Windows.
+- Windows desktop release should be built locally on Windows.
+- Android artifacts are debug-signed for internal testing unless a local release keystore is configured.
 - iOS no-codesign artifacts are for review and CI validation. Real iPhone install or TestFlight needs Apple signing.
-- Desktop release builds are handled on GitHub so local Windows Application Control does not block the release path.
+- GitHub Actions is reserved for iOS, macOS, and Linux release artifacts.

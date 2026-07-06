@@ -10,9 +10,47 @@ permissions:
   contents: read
 
 jobs:
-  desktop-windows:
-    name: Desktop Windows
-    runs-on: windows-latest
+  desktop-linux:
+    name: Desktop Linux
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: desktop/app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/app/package-lock.json
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build Tauri Linux bundle
+        run: npm run tauri:build
+
+      - name: Upload Linux desktop artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: echolearn-desktop-linux
+          path: desktop/app/src-tauri/target/release/bundle/**/*
+          if-no-files-found: error
+
+  desktop-macos:
+    name: Desktop macOS
+    runs-on: macos-latest
     defaults:
       run:
         working-directory: desktop/app
@@ -33,72 +71,14 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Build Tauri desktop bundle
+      - name: Build Tauri macOS bundle
         run: npm run tauri:build
 
-      - name: Upload desktop artifacts
+      - name: Upload macOS desktop artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: echolearn-desktop-windows
+          name: echolearn-desktop-macos
           path: desktop/app/src-tauri/target/release/bundle/**/*
-          if-no-files-found: error
-
-  android:
-    name: Android APK and AAB
-    runs-on: ubuntu-latest
-    env:
-      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-    defaults:
-      run:
-        working-directory: mobile/flutter_app
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - name: Install Flutter dependencies
-        run: flutter pub get
-
-      - name: Decode Android signing key
-        if: ${{ env.ANDROID_KEYSTORE_BASE64 != '' }}
-        shell: bash
-        run: |
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android-upload-keystore.jks
-
-      - name: Build Android APK
-        env:
-          ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/mobile/flutter_app/android-upload-keystore.jks
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: flutter build apk --release
-
-      - name: Build Android App Bundle
-        env:
-          ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/mobile/flutter_app/android-upload-keystore.jks
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: flutter build appbundle --release
-
-      - name: Upload Android artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: echolearn-android
-          path: |
-            mobile/flutter_app/build/app/outputs/flutter-apk/*.apk
-            mobile/flutter_app/build/app/outputs/bundle/release/*.aab
           if-no-files-found: error
 
   ios:
