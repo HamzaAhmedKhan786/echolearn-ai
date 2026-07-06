@@ -97,13 +97,17 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Ensure iOS project support files
-        run: flutter create --platforms=ios .
-
       - name: Disable experimental Flutter Swift Package Manager
         run: |
           flutter config --no-enable-swift-package-manager
           flutter config --list
+
+      - name: Verify iOS workspace files
+        run: |
+          pwd
+          ls -la ios
+          test -f ios/Runner.xcworkspace/contents.xcworkspacedata
+          test -f ios/Runner.xcodeproj/project.pbxproj
 
       - name: Install Flutter dependencies
         run: flutter pub get
